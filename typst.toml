@@ -1,0 +1,15 @@
+[package]
+name = "clio"
+version = "0.1.0"
+entrypoint = "lib.typ"
+description = "Mathematical and physical diagrams with a Rust and WebAssembly backend"
+keywords = ["physics", "mathematics", "heatmap", "wasm"]
+categories = ["visualization"]
+exclude = [
+  "crates/**",
+  "target/**",
+  "scripts/**",
+  "Cargo.toml",
+  "Cargo.lock",
+  ".gitignore",
+]

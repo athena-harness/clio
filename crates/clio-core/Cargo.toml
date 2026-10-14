@@ -1,0 +1,6 @@
+[package]
+name = "clio-core"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Mathematical and physical computation and image rendering for Clio"

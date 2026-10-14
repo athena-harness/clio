@@ -1,0 +1,18 @@
+[workspace]
+members = ["crates/clio-core", "crates/clio-wasm"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+clio-core = { path = "crates/clio-core" }
+wasm-minimal-protocol = "0.2.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
