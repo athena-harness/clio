@@ -4,3 +4,9 @@ version.workspace = true
 edition.workspace = true
 publish.workspace = true
 description = "Mathematical and physical computation and image rendering for Clio"
+
+[dependencies]
+serde.workspace = true
+png.workspace = true
+palette.workspace = true
+thiserror.workspace = true

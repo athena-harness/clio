@@ -9,6 +9,8 @@ exclude = [
   "crates/**",
   "target/**",
   "scripts/**",
+  "examples/**",
+  "docs/**",
   "Cargo.toml",
   "Cargo.lock",
   ".gitignore",
