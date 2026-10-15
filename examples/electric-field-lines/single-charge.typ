@@ -11,7 +11,8 @@
   grid: line-grid,
   description: [A positive point charge emits radial electric-field lines.],
   formula: [$q = +1, quad N_"seeds" = 24$],
-  note: [Circle seeds are generated in Rust. Joined forward and backward branches share the physical arrow direction.],
+  note: [Circle seeds are generated in Rust. Joined forward and backward
+    branches share the physical arrow direction.],
   legend: false,
   plot: electric-field-lines(
     sources,

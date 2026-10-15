@@ -197,7 +197,10 @@
   if endpoints == none {
     backend.render_electric_field_lines(bytes(json.encode(diagram)))
   } else {
-    backend.render_electric_field_lines_annotated(bytes(json.encode((diagram: diagram, endpoints: endpoints))))
+    backend.render_electric_field_lines_annotated(bytes(json.encode((
+      diagram: diagram,
+      endpoints: endpoints,
+    ))))
   }
 }
 

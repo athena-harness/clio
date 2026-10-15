@@ -11,7 +11,8 @@
   grid: line-grid,
   description: [Field lines bend away from the central cancellation region.],
   formula: [$q_1 = q_2 = +1, quad N_"seeds" = 36$],
-  note: [Each charge has its own seed circle. Curves terminate at the bounds, sources, nulls, or the step limit.],
+  note: [Each charge has its own seed circle. Curves terminate at the bounds,
+    sources, nulls, or the step limit.],
   legend: false,
   plot: electric-field-lines(
     sources,

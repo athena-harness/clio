@@ -11,7 +11,9 @@
     seed-segment((0.14, -1.4), (0.14, -0.8), count: 8),
     seed-circle((0, 0), radius: 0.35, count: 12, phase: 0.08),
   ),
-  description: [The opening bends trajectories near an otherwise planar source.],
+  description: [The opening bends trajectories near an otherwise planar
+    source.],
   formula: [$sigma = 1, quad R_"hole" = 0.7$],
-  note: [Surface-adjacent and interior seeds show edge deflection and the central cancellation region.],
+  note: [Surface-adjacent and interior seeds show edge deflection and the
+    central cancellation region.],
 )

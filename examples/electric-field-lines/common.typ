@@ -1,6 +1,7 @@
 #import "../../lib.typ": *
 #import "../electric-field/common.typ": (
-  example-panel, example-tracing, mask-thickness, plot-field, sample-height, sample-width,
+  example-panel, example-tracing, mask-thickness, plot-field, sample-height,
+  sample-width,
 )
 #import "../electric-field/models.typ": grid-for, sources-for
 

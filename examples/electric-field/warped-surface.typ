@@ -1,6 +1,8 @@
 #import "../../lib.typ": *
 #import "../electric-field/custom-models.typ": custom-models
-#import "../electric-field/common.typ": example-panel, magnitude-colors, plot-field
+#import "../electric-field/common.typ": (
+  example-panel, magnitude-colors, plot-field,
+)
 
 #let model = custom-models.at("warped-surface")
 #example-panel(

@@ -9,5 +9,6 @@
   description: [Four uniformly charged segments form a closed loop.],
   formula: [$lambda = 1, quad "side" = 1.6$],
   color: magnitude-colors(maximum: 16),
-  note: [The field cancels at the center. Uniform density is imposed rather than determined by conductor equilibrium.],
+  note: [The field cancels at the center. Uniform density is imposed rather than
+    determined by conductor equilibrium.],
 )

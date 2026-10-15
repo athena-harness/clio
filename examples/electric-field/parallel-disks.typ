@@ -11,5 +11,6 @@
   quantity: field-component((1, 0, 0)),
   color: signed-colors(maximum: 12),
   scalar-label: $E_x$,
-  note: [A finite prescribed-charge model shows fringing. Charge redistribution on real conductors is not modeled.],
+  note: [A finite prescribed-charge model shows fringing. Charge redistribution
+    on real conductors is not modeled.],
 )

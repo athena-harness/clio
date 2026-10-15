@@ -9,9 +9,10 @@ bash scripts/build-plugin.sh
 typst compile --root . examples/gallery.typ /tmp/clio-gallery.pdf
 ```
 
-All Coulomb evaluation, continuous integration, scalar extraction, color mapping,
-PNG encoding, and SVG composition run in Rust. Typst creates source descriptions and composes the
-returned image with formulas, labels, captions, and page layout.
+All Coulomb evaluation, continuous integration, scalar extraction, color
+mapping, PNG encoding, and SVG composition run in Rust. Typst creates source
+descriptions and composes the returned image with formulas, labels, captions,
+and page layout.
 
 == Example gallery
 
@@ -23,21 +24,23 @@ returned image with formulas, labels, captions, and page layout.
 typst compile --root . examples/electric-field/dipole.typ /tmp/clio-dipole.pdf
 ```
 
-The first eight gallery pages use the same ordering for both sets: heatmap pages 1--4
-correspond to field-line pages 5--8. `examples/electric-field/models.typ` owns
-source geometry, charge densities, quadrature counts, and observation frames
-shared by both sets, so changing a model updates both views.
+The first eight gallery pages use the same ordering for both sets: heatmap pages
+1--4 correspond to field-line pages 5--8. `examples/electric-field/models.typ`
+owns source geometry, charge densities, quadrature counts, and observation
+frames shared by both sets, so changing a model updates both views.
 
 Pages 9--10 add four custom-geometry models and their matching field-line views.
-See the Custom charge geometry chapter for parameter expressions and triangle meshes.
+See the Custom charge geometry chapter for parameter expressions and triangle
+meshes.
 
 The gallery covers an isolated charge, equal and unequal charge pairs, a dipole,
 square and axial quadrupoles, a finite rod, a long-wire approximation, opposite
-parallel line charges, a square wire loop, a disk, a narrow-band ring approximation,
-an annulus, an infinite plane with a hole, parallel charged disks, and opposite
-coplanar charged disks.
+parallel line charges, a square wire loop, a disk, a narrow-band ring
+approximation, an annulus, an infinite plane with a hole, parallel charged
+disks, and opposite coplanar charged disks.
 
-Raster and integration sampling can be changed independently for the entire gallery:
+Raster and integration sampling can be changed independently for the entire
+gallery:
 
 ```sh
 typst compile --root . --input samples-x=240 --input samples-y=180 \
@@ -46,15 +49,17 @@ typst compile --root . --input samples-x=240 --input samples-y=180 \
 
 Defaults are 160 by 120 pixels and integration detail 1. The detail multiplier
 scales the source sample counts in `examples/electric-field/common.typ`; each
-source's base count is shared in `examples/electric-field/models.typ`. Increasing both radial and
-angular counts by a factor of two quadruples surface quadrature work. Bounds and
-pixel aspect ratios in these examples preserve equal lengths along both axes.
+source's base count is shared in `examples/electric-field/models.typ`.
+Increasing both radial and angular counts by a factor of two quadruples surface
+quadrature work. Bounds and pixel aspect ratios in these examples preserve equal
+lengths along both axes.
 
 The gallery uses relative units and a regularization length of 0.06. It shows
-prescribed charges rather than self-consistent charge redistribution on conductors.
-The long-wire example is finite, and the ring example uses a narrow annulus with
-total charge normalized to one. Their approximation assumptions are stated in
-the panels. Positive and negative field components use a diverging palette.
+prescribed charges rather than self-consistent charge redistribution on
+conductors. The long-wire example is finite, and the ring example uses a narrow
+annulus with total charge normalized to one. Their approximation assumptions are
+stated in the panels. Positive and negative field components use a diverging
+palette.
 
 Example masks use a shared thickness of 0.04 world units. SVG geometry keeps
 these thin lines and small point markers smooth at any display size.
@@ -78,11 +83,19 @@ these thin lines and small point markers smooth at any display size.
 #table(
   columns: (1.2fr, 2.8fr),
   table.header([Configuration], [Responsibility]),
-  [Source constructors], [Charge geometry, signed charge/density, integration accuracy],
-  [`field-grid`], [Image resolution, observation bounds, plane, sample placement],
+  [Source constructors],
+  [Charge geometry, signed charge/density, integration accuracy],
+
+  [`field-grid`],
+  [Image resolution, observation bounds, plane, sample placement],
+
   [`field-parameters`], [Coulomb constant and regularization length],
-  [`field-magnitude` / `field-component`], [Scalar extracted from the vector field],
-  [`field-colors`], [Value range, nonlinear scale, palette, interpolation space],
+  [`field-magnitude` / `field-component`],
+  [Scalar extracted from the vector field],
+
+  [`field-colors`],
+  [Value range, nonlinear scale, palette, interpolation space],
+
   [`width`], [Typst display size only],
 )
 
@@ -93,10 +106,15 @@ computing the magnitude or projection.
 
 #table(
   columns: (1.4fr, 1fr, 2.6fr),
-  table.header([Constructor], [Required arguments], [Named parameters and defaults]),
+  table.header(
+    [Constructor], [Required arguments], [Named parameters and defaults]
+  ),
   [`point-charge`], [`position`], [`charge: 1`],
   [`charged-segment`], [`start, end`], [`density: 1, samples: 64`],
-  [`charged-disk`], [`radius`], [`density: 1, plane: field-plane(), radial-samples: 32, angular-samples: 64`],
+  [`charged-disk`],
+  [`radius`],
+  [`density: 1, plane: field-plane(), radial-samples: 32, angular-samples: 64`],
+
   [`charged-annulus`], [`inner-radius, outer-radius`], [Same as disk],
   [`charged-plane-with-hole`], [`hole-radius`], [Same as disk],
 )
@@ -118,17 +136,19 @@ Continuous sources use midpoint quadrature. Segment nodes carry
 `density * radius * radial-step * angular-step`. Nodes and angles are prepared
 once per image, then reused for every observation point.
 
-Increase `resolution` to increase heatmap sampling density. Independently increase
-`samples`, or `radial-samples` and `angular-samples`, to refine continuous-source
-integration. Uniform quadrature is approximate and needs convergence checks,
-especially close to a charged surface or with very small regularization.
+Increase `resolution` to increase heatmap sampling density. Independently
+increase `samples`, or `radial-samples` and `angular-samples`, to refine
+continuous-source integration. Uniform quadrature is approximate and needs
+convergence checks, especially close to a charged surface or with very small
+regularization.
 
-The infinite plane with a hole uses `r = hole-radius/(1-t)` to map `t` in `[0,1)`
-onto the charged radial interval `[hole-radius, infinity)`. Midpoint quadrature
-includes the Jacobian `r*dr/dt`. It needs no finite outer integration radius or
-tail correction, and places no virtual sources inside the hole. `radial-samples`
-controls samples in this compact coordinate. Increase radial and angular samples
-when observations are far from the hole or close to the charged surface.
+The infinite plane with a hole uses `r = hole-radius/(1-t)` to map `t` in
+`[0,1)` onto the charged radial interval `[hole-radius, infinity)`. Midpoint
+quadrature includes the Jacobian `r*dr/dt`. It needs no finite outer integration
+radius or tail correction, and places no virtual sources inside the hole.
+`radial-samples` controls samples in this compact coordinate. Increase radial
+and angular samples when observations are far from the hole or close to the
+charged surface.
 
 == Observation grid and field quantity
 
@@ -143,16 +163,16 @@ field-grid(
 )
 ```
 
-Bounds are `(xmin, xmax, ymin, ymax)` in the observation plane's local coordinates.
-Rows run downward from `ymax`. `"centers"` samples pixel centers; `"endpoints"`
-includes both bounds and needs at least two pixels per axis. Frame axes must be
-unit vectors and perpendicular, so local coordinates retain physical distances.
-The raster aspect ratio follows `resolution`; match it to the coordinate spans
-when equal distances should have equal displayed lengths.
+Bounds are `(xmin, xmax, ymin, ymax)` in the observation plane's local
+coordinates. Rows run downward from `ymax`. `"centers"` samples pixel centers;
+`"endpoints"` includes both bounds and needs at least two pixels per axis. Frame
+axes must be unit vectors and perpendicular, so local coordinates retain
+physical distances. The raster aspect ratio follows `resolution`; match it to
+the coordinate spans when equal distances should have equal displayed lengths.
 
-`field-magnitude()` includes all three Cartesian components, including the component
-normal to the observation plane. `field-component((0, 0, 1))` displays the signed
-world-space z component; any finite unit direction is accepted.
+`field-magnitude()` includes all three Cartesian components, including the
+component normal to the observation plane. `field-component((0, 0, 1))` displays
+the signed world-space z component; any finite unit direction is accepted.
 
 == Units and singularities
 
@@ -162,27 +182,30 @@ range and nonlinear reference values must then use the resulting field unit.
 
 The softened point-charge kernel is
 
-$ bold(E)(bold(r)) = k q (bold(r) - bold(r)_0) / (norm(bold(r) - bold(r)_0)^2 + epsilon^2)^(3/2). $
+$
+  bold(E)(bold(r)) = k q (bold(r) - bold(r)_0) / (norm(bold(r) - bold(r)_0)^2 + epsilon^2)^(3/2).
+$
 
-Here $bold(r)_0$ is the charge position and $epsilon$ is `softening`.
-Softening is a *length*, defaults to 0.02, and changes the field near sources.
-It is separate from integration accuracy and color clipping. Set it to zero for
-the exact point-charge kernel away from singularities. Singular samples use
-`singularity-color`, defaulting to transparent. At zero softening the charged part
-of the infinite plane is undefined; the hole interior remains evaluable.
+Here $bold(r)_0$ is the charge position and $epsilon$ is `softening`. Softening
+is a *length*, defaults to 0.02, and changes the field near sources. It is
+separate from integration accuracy and color clipping. Set it to zero for the
+exact point-charge kernel away from singularities. Singular samples use
+`singularity-color`, defaulting to transparent. At zero softening the charged
+part of the infinite plane is undefined; the hole interior remains evaluable.
 Finite continuous distributions are represented by quadrature nodes, so exact
 coincidence with a nonzero node is also undefined at zero softening. Other
-on-surface values may depend strongly on quadrature and are not one-sided limits.
+on-surface values may depend strongly on quadrature and are not one-sided
+limits.
 
 == Source overlays
 
 Source masks are optional in the library and enabled in the gallery. They mark
-the geometric intersection of a source with the observation slice, thickened
-by half the configured thickness on each side. Point sources appear as small
-filled disks, segments as bands, and surfaces as filled cross sections.
-Circular openings remain unfilled except for the configured thickness at their
-edges. A source outside the slice is not projected into it; the coplanar-disk
-example at observation height 0.35 consequently has no visible source masks.
+the geometric intersection of a source with the observation slice, thickened by
+half the configured thickness on each side. Point sources appear as small filled
+disks, segments as bands, and surfaces as filled cross sections. Circular
+openings remain unfilled except for the configured thickness at their edges. A
+source outside the slice is not projected into it; the coplanar-disk example at
+observation height 0.35 consequently has no visible source masks.
 
 ```typ
 #electric-field-heatmap(
@@ -203,14 +226,14 @@ overlays. Later sources take visual precedence when masks overlap.
 
 Thickness uses the same length unit as source coordinates and has no effect on
 field softening, quadrature, source charge, or the heatmap color range. Masks
-are drawn as vector geometry above the embedded field raster. Translucent sources
-composite in source order; later sources appear above earlier ones.
+are drawn as vector geometry above the embedded field raster. Translucent
+sources composite in source order; later sources appear above earlier ones.
 
 == Color scales and colorbars
 
-`field-colors` defaults to range `(0, 10)`, a signed logarithmic scale with reference
-1, the five-stop Obsino palette, and Oklab interpolation. Colors may be Typst colors
-or hexadecimal strings. Transparent stops are supported.
+`field-colors` defaults to range `(0, 10)`, a signed logarithmic scale with
+reference 1, the five-stop Obsino palette, and Oklab interpolation. Colors may
+be Typst colors or hexadecimal strings. Transparent stops are supported.
 
 - `linear-scale()` maps values linearly.
 - `logarithmic-scale(reference: 1)` maps `sign(v)*ln(1+abs(v)/reference)`.
@@ -222,28 +245,31 @@ signed range and a diverging palette, such as `stops: (blue, white, red)`.
 `space: "srgb"` is available as an alternative to perceptual `"oklab"`.
 
 `field-colorbar` uses the same configuration without re-evaluating any sources.
-It defaults to `resolution: (256, 16), orientation: "horizontal", width: 50%`.
-A vertical colorbar places the maximum at the top. The colorbar is evenly spaced
-in the *transformed* coordinate; nonlinear tick positions must use that transform,
-not linear interpolation of the original field values. Labels remain in Typst.
+It defaults to `resolution: (256, 16), orientation: "horizontal", width: 50%`. A
+vertical colorbar places the maximum at the top. The colorbar is evenly spaced
+in the *transformed* coordinate; nonlinear tick positions must use that
+transform, not linear interpolation of the original field values. Labels remain
+in Typst.
 
 `electric-field-heatmap-bytes` and `field-colorbar-bytes` return SVG bytes for
-custom composition. Their counterparts return plain image content and impose
-no figure, legend, caption, alignment, or page rules.
+custom composition. Their counterparts return plain image content and impose no
+figure, legend, caption, alignment, or page rules.
 
 == SVG output and vector geometry
 
-All public byte renderers return self-contained SVG. A heatmap contains an embedded
-PNG field layer and optional vector source masks. Field lines and source markers
-are SVG paths or circles; colorbars are SVG gradients. No external image files
-are referenced. For direct composition, use `image(data, format: "svg")`.
+All public byte renderers return self-contained SVG. A heatmap contains an
+embedded PNG field layer and optional vector source masks. Field lines and
+source markers are SVG paths or circles; colorbars are SVG gradients. No
+external image files are referenced. For direct composition, use
+`image(data, format: "svg")`.
 
-Increasing `field-grid.resolution` refines field sampling. Source masks are drawn
-independently: ordinary points, segments, and circular sections use SVG primitives;
-complex slices use adaptive vector contours of the prepared geometry. Their contour
-cells have a diagonal at most roughly 1/2048 of the observation diagonal, with
-further refinement for thin masks. Increasing source integration samples improves
-the geometric approximation of a parameterized model, independently of raster size.
+Increasing `field-grid.resolution` refines field sampling. Source masks are
+drawn independently: ordinary points, segments, and circular sections use SVG
+primitives; complex slices use adaptive vector contours of the prepared
+geometry. Their contour cells have a diagonal at most roughly 1/2048 of the
+observation diagonal, with further refinement for thin masks. Increasing source
+integration samples improves the geometric approximation of a parameterized
+model, independently of raster size.
 
 The public heatmap and colorbar byte functions now return SVG instead of PNG;
 callers using their bytes directly must select the SVG image format. The Rust
@@ -255,11 +281,16 @@ The plugin accepts at most 16 MiB of JSON. A raster contains at most 4,194,304
 pixels. Per-source integration is limited to 65,536 nodes, with at least four
 angular samples for surfaces and 262,144 total nodes. A heatmap may require at
 most one billion source/pixel evaluations. Vector masks have a separate budget
-of one billion conservative geometry evaluations and 20 subdivision levels. Invalid fields, unknown parameters,
-non-finite geometry, and arithmetic overflow are reported as Typst plugin errors.
+of one billion conservative geometry evaluations and 20 subdivision levels.
+Invalid fields, unknown parameters, non-finite geometry, and arithmetic overflow
+are reported as Typst plugin errors.
 
 == References
 
-- #link("https://openstax.org/books/university-physics-volume-2/pages/5-5-calculating-electric-fields-of-charge-distributions")[Electric fields of charge distributions]: continuous Coulomb integration.
-- #link("https://bottosson.github.io/posts/oklab/")[Oklab]: perceptual color interpolation, implemented through the Rust `palette` crate.
-- #link("https://typst.app/docs/reference/foundations/plugin/")[Typst plugins]: byte-based WASM interface.
+- #link(
+    "https://openstax.org/books/university-physics-volume-2/pages/5-5-calculating-electric-fields-of-charge-distributions",
+  )[Electric fields of charge distributions]: continuous Coulomb integration.
+- #link("https://bottosson.github.io/posts/oklab/")[Oklab]: perceptual color
+  interpolation, implemented through the Rust `palette` crate.
+- #link("https://typst.app/docs/reference/foundations/plugin/")[Typst plugins]:
+  byte-based WASM interface.

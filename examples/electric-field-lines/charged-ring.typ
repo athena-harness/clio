@@ -11,5 +11,6 @@
   ),
   description: [A side slice through a narrow annulus with unit charge.],
   formula: [$Q = 1, quad R approx 0.8$],
-  note: [The shared source has radii 0.77 and 0.83. Extra interior seeds resolve the field through the opening.],
+  note: [The shared source has radii 0.77 and 0.83. Extra interior seeds resolve
+    the field through the opening.],
 )

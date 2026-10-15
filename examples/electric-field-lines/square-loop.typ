@@ -13,5 +13,6 @@
   ),
   description: [Interior curves approach the central planar field null.],
   formula: [$lambda = 1, quad "side" = 1.6$],
-  note: [Interior and exterior seeds reveal both regions. A null in this symmetry plane does not imply stable 3D confinement.],
+  note: [Interior and exterior seeds reveal both regions. A null in this
+    symmetry plane does not imply stable 3D confinement.],
 )

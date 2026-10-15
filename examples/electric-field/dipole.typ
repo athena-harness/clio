@@ -12,7 +12,13 @@
   overlay: source-overlay(
     color: "#ede9fe",
     thickness: mask-thickness,
-    overrides: ((source: 1, style: source-style(color: "#bae6fd", thickness: mask-thickness)),),
+    overrides: (
+      (
+        source: 1,
+        style: source-style(color: "#bae6fd", thickness: mask-thickness),
+      ),
+    ),
   ),
-  note: [The field adds between the charges; its distant magnitude decays faster than a monopole.],
+  note: [The field adds between the charges; its distant magnitude decays faster
+    than a monopole.],
 )

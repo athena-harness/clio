@@ -10,5 +10,6 @@
   formula: [$sigma_1 = +1, quad sigma_2 = -1, quad z_"obs" = 0.35$],
   tracing: example-tracing(mode: "projected"),
   direction-label: [Arrows follow the in-plane projection.],
-  note: [This matches the heatmap's elevated slice. Curves trace projected E, while the heatmap shows E_z; these are not 3D field lines.],
+  note: [This matches the heatmap's elevated slice. Curves trace projected E,
+    while the heatmap shows E_z; these are not 3D field lines.],
 )

@@ -36,7 +36,7 @@ impl EndpointStyle {
 }
 
 impl Termination {
-  pub(super) fn name(self) -> &'static str {
+  pub(crate) fn name(self) -> &'static str {
     match self {
       Self::Seed => "seed",
       Self::Source => "source",

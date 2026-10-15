@@ -11,9 +11,11 @@ field evaluator. Relative units; Coulomb multiplier 1 and softening 0.06.
 #grid(
   columns: (1fr, 1fr),
   gutter: 10pt,
-  include "electric-field/charged-arc.typ", include "electric-field/warped-surface.typ",
+  include "electric-field/charged-arc.typ",
+  include "electric-field/warped-surface.typ",
 
-  include "electric-field/charged-volume.typ", include "electric-field/triangle-mesh.typ",
+  include "electric-field/charged-volume.typ",
+  include "electric-field/triangle-mesh.typ",
 )
 
 #pagebreak()
@@ -25,7 +27,9 @@ capture.
 #grid(
   columns: (1fr, 1fr),
   gutter: 10pt,
-  include "electric-field-lines/charged-arc.typ", include "electric-field-lines/warped-surface.typ",
+  include "electric-field-lines/charged-arc.typ",
+  include "electric-field-lines/warped-surface.typ",
 
-  include "electric-field-lines/charged-volume.typ", include "electric-field-lines/triangle-mesh.typ",
+  include "electric-field-lines/charged-volume.typ",
+  include "electric-field-lines/triangle-mesh.typ",
 )

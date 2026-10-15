@@ -11,5 +11,6 @@
   quantity: field-component((0, 0, 1)),
   color: signed-colors(maximum: 6),
   scalar-label: $E_z$,
-  note: [A diverging palette distinguishes positive and negative normal fields; the observation slice is above both disks.],
+  note: [A diverging palette distinguishes positive and negative normal fields;
+    the observation slice is above both disks.],
 )

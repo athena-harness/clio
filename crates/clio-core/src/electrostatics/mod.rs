@@ -6,6 +6,7 @@ pub mod field_lines;
 pub mod heatmap;
 pub mod overlay;
 pub mod point_charges;
+pub mod scene;
 
 use crate::{
   geometry::{dot, finite, mul, sub, Plane, Vector},

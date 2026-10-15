@@ -3,7 +3,10 @@
 #show: manual-style
 
 #let version = toml("../typst.toml").package.version
-#let charges = (point-charge((-0.7, 0, 0)), point-charge((0.7, 0, 0), charge: -1))
+#let charges = (
+  point-charge((-0.7, 0, 0)),
+  point-charge((0.7, 0, 0), charge: -1),
+)
 #let palette = field-colors(range: (0, 12))
 #let seeds = (seed-circle((-0.7, 0), count: 18),)
 
@@ -13,7 +16,8 @@
   #v(3mm)
   #text(size: 16pt)[Mathematical and physical diagrams]
   #v(1mm)
-  #text(size: 11pt, fill: muted)[A Typst library with a Rust and WebAssembly backend]
+  #text(size: 11pt, fill: muted)[A Typst library with a Rust and WebAssembly
+    backend]
   #v(10mm)
   #electric-field-lines(
     charges,
@@ -42,14 +46,20 @@
     #text(size: 13pt, weight: "bold")[Guide]
     #outline(
       title: none,
-      target: selector(heading).before(<function-reference>, inclusive: false).after(<contents>, inclusive: false),
+      target: selector(heading)
+        .before(<function-reference>, inclusive: false)
+        .after(<contents>, inclusive: false),
       depth: 2,
     )
   ],
   [
     #text(size: 13pt, weight: "bold")[Reference]
     #set text(size: 8pt)
-    #outline(title: none, target: selector(heading).after(<function-reference>, inclusive: false), depth: 3)
+    #outline(
+      title: none,
+      target: selector(heading).after(<function-reference>, inclusive: false),
+      depth: 3,
+    )
   ],
 )
 #pagebreak()
@@ -57,10 +67,10 @@
 = Getting started
 
 Clio evaluates electric fields from prescribed point charges and continuous
-charge distributions. Its Rust backend integrates the sources, samples the field,
-and returns SVG diagrams through a byte-only WebAssembly
-interface. The Typst layer provides composable configuration dictionaries and
-image content that fits into ordinary documents.
+charge distributions. Its Rust backend integrates the sources, samples the
+field, and returns SVG diagrams through a byte-only WebAssembly interface. The
+Typst layer provides composable configuration dictionaries and image content
+that fits into ordinary documents.
 
 == Build and import
 
@@ -72,15 +82,15 @@ typst compile --root . docs/manual.typ /tmp/clio-manual.pdf
 ```
 
 The build script produces `wasm/clio.wasm`. Import `lib.typ` relative to your
-document; the examples below assume a document at the repository root.
-The Rust plugin receives JSON bytes and returns image bytes; it does not read or
-write files. Typst retains control of display size, labels, formulas, and captions.
+document; the examples below assume a document at the repository root. The Rust
+plugin receives JSON bytes and returns image bytes; it does not read or write
+files. Typst retains control of display size, labels, formulas, and captions.
 
 == A dipole heatmap
 
-Define the sources once, then choose the sampling grid and color mapping.
-The image width changes its placement in the document; it does not change the
-number of field samples.
+Define the sources once, then choose the sampling grid and color mapping. The
+image width changes its placement in the document; it does not change the number
+of field samples.
 
 #code-example(
   ```typ
@@ -101,16 +111,21 @@ number of field samples.
     color: palette,
   )
   ```,
-  electric-field-heatmap(charges, grid: field-grid(resolution: (240, 180)), color: palette),
-  caption: [A positive and a negative unit charge in the default observation plane.],
+  electric-field-heatmap(
+    charges,
+    grid: field-grid(resolution: (240, 180)),
+    color: palette,
+  ),
+  caption: [A positive and a negative unit charge in the default observation
+    plane.],
 )
 
 #pagebreak()
 == Trace the same field
 
-Use the same sources and bounds for a matching field-line view. Seeds and tracing
-accuracy are independent of the output resolution. Arrows follow the electric
-field from positive toward negative charge.
+Use the same sources and bounds for a matching field-line view. Seeds and
+tracing accuracy are independent of the output resolution. Arrows follow the
+electric field from positive toward negative charge.
 
 #code-example(
   ```typ
@@ -137,15 +152,17 @@ field from positive toward negative charge.
 
 == Choose configuration by responsibility
 
-Source constructors describe geometry and quadrature. #fn("field-grid") sets
-the observation frame and raster sampling. #fn("field-parameters") sets physical
+Source constructors describe geometry and quadrature. #fn("field-grid") sets the
+observation frame and raster sampling. #fn("field-parameters") sets physical
 scaling and regularization. Heatmaps select a scalar and palette; field lines
 select seeds, tracing controls, and stroke styles. #fn("source-overlay") gives
 physical objects their own configurable color, separate from the field palette.
 
-For sampling, adjust #param("field-grid", "resolution") to refine the image,
-and #param("charged-annulus", "radial-samples") or
-#param("charged-annulus", "angular-samples") to refine surface integration.
+For sampling, adjust #param("field-grid", "resolution") to refine the image, and
+#param("charged-annulus", "radial-samples") or #param(
+  "charged-annulus",
+  "angular-samples",
+) to refine surface integration.
 
 The next chapters describe numerical assumptions, examples, and limits. The
 @function-reference lists every public constructor and renderer. Inline function
@@ -154,6 +171,7 @@ names link to their reference entries.
 #include "electric-field.typ"
 #include "electric-field-lines.typ"
 #include "custom-geometry.typ"
+#include "spatial-views.typ"
 #pagebreak()
 = Function reference <function-reference>
 
@@ -170,7 +188,9 @@ charges, and lengths use one consistent unit system chosen by the caller.
 
   This manual is written entirely in Typst. Its guide/reference organization,
   code-and-output examples, and linked API entries take inspiration from the
-  #link("https://github.com/fletcher-package/fletcher/blob/main/docs/manual.typ")[Fletcher manual].
-  The local styles in `docs/style.typ` require no external documentation package.
-  All displayed field diagrams are rendered by Clio during compilation.
+  #link(
+    "https://github.com/fletcher-package/fletcher/blob/main/docs/manual.typ",
+  )[Fletcher manual]. The local styles in `docs/style.typ` require no external
+  documentation package. All displayed field diagrams are rendered by Clio
+  during compilation.
 ])

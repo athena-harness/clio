@@ -81,3 +81,18 @@ pub fn render_electric_field_lines_annotated(input: &[u8]) -> Result<Vec<u8>, St
   clio_core::electrostatics::field_lines::render_annotated(&request.diagram, &request.endpoints)
     .map_err(|error| error.to_string())
 }
+
+/// Renders spatial source geometry, an observation slice, and optional full-vector field lines.
+///
+/// # Parameters
+/// * `input`: JSON encoding of `clio_core::electrostatics::scene::Request`.
+///
+/// # Returns
+/// Self-contained SVG bytes with an orthographic projection of the spatial scene.
+///
+/// # Errors
+/// Reports decoding, geometry, camera, tracing, and rendering-budget failures.
+#[cfg_attr(target_arch = "wasm32", wasm_minimal_protocol::wasm_func)]
+pub fn render_electric_field_scene(input: &[u8]) -> Result<Vec<u8>, String> {
+  clio_core::electrostatics::scene::render(&decode(input)?).map_err(|error| error.to_string())
+}

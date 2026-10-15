@@ -1,4 +1,6 @@
-#import "electric-field/common.typ": integration-detail, sample-height, sample-width
+#import "electric-field/common.typ": (
+  integration-detail, sample-height, sample-width,
+)
 
 #set page(paper: "a4", margin: 15mm, numbering: "1 / 1")
 #set text(size: 9pt)
@@ -149,4 +151,21 @@
     include "electric-field-lines/charged-volume.typ",
     include "electric-field-lines/triangle-mesh.typ",
   ),
+)
+
+#pagebreak()
+= Clio / Spatial context
+
+Complete source geometry, observation planes, and full-vector three-dimensional
+field lines. Relative units; $k_e = 1$, $epsilon = 0.06$. Transparent surface
+ordering is approximate. Source colors are independent of the slice palette.
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 10pt,
+  include "electric-field-3d/triangle-mesh.typ",
+  include "electric-field-3d/warped-surface.typ",
+
+  include "electric-field-3d/charged-volume.typ",
+  include "electric-field-3d/dipole.typ",
 )

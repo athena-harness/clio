@@ -30,9 +30,9 @@ pub enum Termination {
   Seed,
   /// The configured capture distance from charged geometry was reached.
   Source,
-  /// The observation rectangle was reached.
+  /// The observation rectangle or spatial tracing box was reached.
   Bounds,
-  /// An RK4 evaluation encountered an in-plane field below the threshold.
+  /// An RK4 evaluation encountered a field magnitude below the tracing threshold.
   WeakField,
   /// An RK4 evaluation encountered an unregularized singularity.
   Singularity,
@@ -162,6 +162,27 @@ pub struct LineStyle {
   pub arrow_spacing: Option<f64>,
   /// Arrowhead length in output pixels.
   pub arrow_size: f64,
+}
+
+impl LineStyle {
+  pub(crate) fn validate(&self) -> Result<[u8; 4], Error> {
+    let style = self;
+    require(
+      style.width.is_finite() && style.width > 0.0 && style.width <= 64.0,
+      "line width must be positive and at most 64 output pixels",
+    )?;
+    require(
+      style.arrow_size.is_finite() && (0.0..=64.0).contains(&style.arrow_size),
+      "arrow-size must be between 0 and 64 output pixels",
+    )?;
+    if let Some(spacing) = style.arrow_spacing {
+      require(
+        spacing.is_finite() && spacing >= (2.0 * style.arrow_size).max(1.0),
+        "arrow-spacing must be finite and at least twice arrow-size or 1 pixel",
+      )?;
+    }
+    parse_color(&style.color)
+  }
 }
 
 /// Background independent of the field-line stroke and source masks.
@@ -512,21 +533,7 @@ pub fn render_annotated(request: &Request, endpoints: &EndpointStyle) -> Result<
 fn render_impl(request: &Request, endpoints: Option<&EndpointStyle>) -> Result<Vec<u8>, Error> {
   request.grid.validate()?;
   let style = &request.style;
-  require(
-    style.width.is_finite() && style.width > 0.0 && style.width <= 64.0,
-    "line width must be positive and at most 64 output pixels",
-  )?;
-  require(
-    style.arrow_size.is_finite() && (0.0..=64.0).contains(&style.arrow_size),
-    "arrow-size must be between 0 and 64 output pixels",
-  )?;
-  if let Some(spacing) = style.arrow_spacing {
-    require(
-      spacing.is_finite() && spacing >= (2.0 * style.arrow_size).max(1.0),
-      "arrow-spacing must be finite and at least twice arrow-size or 1 pixel",
-    )?;
-  }
-  let rgba = parse_color(&style.color)?;
+  let rgba = style.validate()?;
   let field = ElectricField::new(&request.sources, request.field)?;
   let overlay = request
     .source_overlay

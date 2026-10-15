@@ -13,5 +13,6 @@
   ),
   description: [A finite opening changes the field near the symmetry axis.],
   formula: [$sigma = 1, quad R_"in" = 0.4, quad R_"out" = 0.9$],
-  note: [Seeds beside the charged bands and inside the opening reveal the inner and outer field regions.],
+  note: [Seeds beside the charged bands and inside the opening reveal the inner
+    and outer field regions.],
 )

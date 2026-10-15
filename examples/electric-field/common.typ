@@ -5,7 +5,10 @@
 #let sample-width = int(sys.inputs.at("samples-x", default: "160"))
 #let sample-height = int(sys.inputs.at("samples-y", default: "120"))
 #let integration-detail = int(sys.inputs.at("integration-detail", default: "1"))
-#assert(integration-detail >= 1, message: "integration-detail must be at least 1")
+#assert(
+  integration-detail >= 1,
+  message: "integration-detail must be at least 1",
+)
 
 #let surface-sampling = (
   radial-samples: 24 * integration-detail,
@@ -90,7 +93,9 @@
         text(size: 7pt)[$x$; $y$ increases upward],
         align(right, text(size: 7pt)[#grid.bounds.at(1)]),
       ),
-      if legend { field-colorbar(color: color, width: 100%, resolution: (192, 8)) } else {
+      if legend {
+        field-colorbar(color: color, width: 100%, resolution: (192, 8))
+      } else {
         block(height: 10pt, text(size: 7pt, direction-label))
       },
       if legend {
