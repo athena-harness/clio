@@ -1,6 +1,7 @@
 //! Coulomb superposition of discrete and uniform continuous sources.
 
 pub mod continuous_charge;
+pub mod field_lines;
 pub mod heatmap;
 pub mod overlay;
 pub mod point_charges;

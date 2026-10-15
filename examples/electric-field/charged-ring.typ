@@ -1,17 +1,11 @@
+#import "models.typ": sources-for, grid-for
 #import "../../lib.typ": *
 #import "common.typ": example-panel, yz-plane, integration-detail, magnitude-colors
 
-// A narrow band approximates a ring while retaining the existing surface API.
-#let inner-radius = 0.77
-#let outer-radius = 0.83
-#let density = 1 / (calc.pi * (outer-radius * outer-radius - inner-radius * inner-radius))
-
 #example-panel(
   [Charged-ring approximation],
-  (charged-annulus(
-    inner-radius, outer-radius, density: density, plane: yz-plane(),
-    radial-samples: 4 * integration-detail, angular-samples: 96 * integration-detail,
-  ),),
+  sources-for("charged-ring"),
+  grid: grid-for("charged-ring"),
   description: [A narrow annulus approximates a circular ring with unit charge.],
   formula: [$Q = 1, quad R approx 0.8$],
   color: magnitude-colors(maximum: 8),

@@ -1,4 +1,6 @@
-# Electric-field heatmaps
+// Native Typst guide chapter, included by manual.typ.
+
+= Electric-field heatmaps
 
 Build the package-local WASM artifact before importing `lib.typ`:
 
@@ -9,17 +11,22 @@ typst compile --root . examples/gallery.typ /tmp/clio-gallery.pdf
 
 All Coulomb evaluation, continuous integration, scalar extraction, color mapping,
 and PNG encoding run in Rust. Typst creates source descriptions and composes the
-returned image with formulas, labels, captions, and page layout. README remains
-reserved for later documentation.
+returned image with formulas, labels, captions, and page layout.
 
-## Example gallery
+== Example gallery
 
 `examples/gallery.typ` includes sixteen independent examples from
-`examples/electric-field/`. Each example can also be compiled on its own:
+`examples/electric-field/`, followed by sixteen matching electric-field-line examples from
+`examples/electric-field-lines/`. Each example can also be compiled on its own:
 
 ```sh
 typst compile --root . examples/electric-field/dipole.typ /tmp/clio-dipole.pdf
 ```
+
+The eight-page gallery uses the same ordering for both sets: heatmap pages 1--4
+correspond to field-line pages 5--8. `examples/electric-field/models.typ` owns
+source geometry, charge densities, quadrature counts, and observation frames
+shared by both sets, so changing a model updates both views.
 
 The gallery covers an isolated charge, equal and unequal charge pairs, a dipole,
 square and axial quadrupoles, a finite rod, a long-wire approximation, opposite
@@ -36,7 +43,7 @@ typst compile --root . --input samples-x=240 --input samples-y=180 \
 
 Defaults are 160 by 120 pixels and integration detail 1. The detail multiplier
 scales the source sample counts in `examples/electric-field/common.typ`; each
-source's base count remains editable in its example. Increasing both radial and
+source's base count is shared in `examples/electric-field/models.typ`. Increasing both radial and
 angular counts by a factor of two quadruples surface quadrature work. Bounds and
 pixel aspect ratios in these examples preserve equal lengths along both axes.
 
@@ -46,9 +53,9 @@ The long-wire example is finite, and the ring example uses a narrow annulus with
 total charge normalized to one. Their approximation assumptions are stated in
 the panels. Positive and negative field components use a diverging palette.
 
-## Independent configuration
+== Independent configuration
 
-```typst
+```typ
 #import "lib.typ": *
 
 #let palette = field-colors(range: (0, 10), scale: logarithmic-scale(reference: 1))
@@ -62,27 +69,31 @@ the panels. Positive and negative field components use a diverging palette.
 #field-colorbar(color: palette)
 ```
 
-| Configuration                         | Responsibility                                                |
-| ------------------------------------- | ------------------------------------------------------------- |
-| Source constructors                   | Charge geometry, signed charge/density, integration accuracy  |
-| `field-grid`                          | Image resolution, observation bounds, plane, sample placement |
-| `field-parameters`                    | Coulomb constant and regularization length                    |
-| `field-magnitude` / `field-component` | Scalar extracted from the vector field                        |
-| `field-colors`                        | Value range, nonlinear scale, palette, interpolation space    |
-| `width`                               | Typst display size only                                       |
+#table(
+  columns: (1.2fr, 2.8fr),
+  table.header([Configuration], [Responsibility]),
+  [Source constructors], [Charge geometry, signed charge/density, integration accuracy],
+  [`field-grid`], [Image resolution, observation bounds, plane, sample placement],
+  [`field-parameters`], [Coulomb constant and regularization length],
+  [`field-magnitude` / `field-component`], [Scalar extracted from the vector field],
+  [`field-colors`], [Value range, nonlinear scale, palette, interpolation space],
+  [`width`], [Typst display size only],
+)
 
-## Sources and integration samples
+== Sources and integration samples
 
-Sources can be mixed in the same array. Rust adds their **vector** fields before
+Sources can be mixed in the same array. Rust adds their *vector* fields before
 computing the magnitude or projection.
 
-| Constructor               | Required arguments           | Named parameters and defaults                                               |
-| ------------------------- | ---------------------------- | --------------------------------------------------------------------------- |
-| `point-charge`            | `position`                   | `charge: 1`                                                                 |
-| `charged-segment`         | `start, end`                 | `density: 1, samples: 64`                                                   |
-| `charged-disk`            | `radius`                     | `density: 1, plane: field-plane(), radial-samples: 32, angular-samples: 64` |
-| `charged-annulus`         | `inner-radius, outer-radius` | Same as disk                                                                |
-| `charged-plane-with-hole` | `hole-radius`                | Same as disk                                                                |
+#table(
+  columns: (1.4fr, 1fr, 2.6fr),
+  table.header([Constructor], [Required arguments], [Named parameters and defaults]),
+  [`point-charge`], [`position`], [`charge: 1`],
+  [`charged-segment`], [`start, end`], [`density: 1, samples: 64`],
+  [`charged-disk`], [`radius`], [`density: 1, plane: field-plane(), radial-samples: 32, angular-samples: 64`],
+  [`charged-annulus`], [`inner-radius, outer-radius`], [Same as disk],
+  [`charged-plane-with-hole`], [`hole-radius`], [Same as disk],
+)
 
 Positions and endpoints are three-element Cartesian arrays. Densities are signed
 charge per unit length for a segment and per unit area for a surface. A source
@@ -91,7 +102,7 @@ must be perpendicular unit vectors. The default source plane is `xy`.
 
 For a surface in `yz`, use:
 
-```typst
+```typ
 #let yz = field-plane(horizontal: (0, 1, 0), vertical: (0, 0, 1))
 #let source = charged-disk(0.7, plane: yz, radial-samples: 40, angular-samples: 80)
 ```
@@ -113,11 +124,11 @@ tail correction, and places no virtual sources inside the hole. `radial-samples`
 controls samples in this compact coordinate. Increase radial and angular samples
 when observations are far from the hole or close to the charged surface.
 
-## Observation grid and field quantity
+== Observation grid and field quantity
 
 `field-grid` defaults to:
 
-```typst
+```typ
 field-grid(
   resolution: (141, 109),
   bounds: (-2, 2, -1.5, 1.5),
@@ -137,15 +148,18 @@ when equal distances should have equal displayed lengths.
 normal to the observation plane. `field-component((0, 0, 1))` displays the signed
 world-space z component; any finite unit direction is accepted.
 
-## Units and singularities
+== Units and singularities
 
 The default Coulomb multiplier is 1 for relative fields. To use physical units,
 provide a Coulomb constant consistent with the charge and length units. Color
 range and nonlinear reference values must then use the resulting field unit.
 
-The softened kernel is
-`k * q * (observation-source) / (distance^2 + softening^2)^(3/2)`.
-Softening is a **length**, defaults to 0.02, and changes the field near sources.
+The softened point-charge kernel is
+
+$ bold(E)(bold(r)) = k q (bold(r) - bold(r)_0) / (norm(bold(r) - bold(r)_0)^2 + epsilon^2)^(3/2). $
+
+Here $bold(r)_0$ is the charge position and $epsilon$ is `softening`.
+Softening is a *length*, defaults to 0.02, and changes the field near sources.
 It is separate from integration accuracy and color clipping. Set it to zero for
 the exact point-charge kernel away from singularities. Singular samples use
 `singularity-color`, defaulting to transparent. At zero softening the charged part
@@ -154,7 +168,7 @@ Finite continuous distributions are represented by quadrature nodes, so exact
 coincidence with a nonzero node is also undefined at zero softening. Other
 on-surface values may depend strongly on quadrature and are not one-sided limits.
 
-## Source overlays
+== Source overlays
 
 Source masks are optional in the library and enabled in the gallery. They mark
 the geometric intersection of a source with the observation slice, thickened
@@ -164,7 +178,7 @@ Circular openings remain unfilled except for the configured thickness at their
 edges. A source outside the slice is not projected into it; the coplanar-disk
 example at observation height 0.35 consequently has no visible source masks.
 
-```typst
+```typ
 #electric-field-heatmap(
   (point-charge((-0.7, 0, 0)), point-charge((0.7, 0, 0), charge: -1)),
   source-overlay: source-overlay(
@@ -186,7 +200,7 @@ field softening, quadrature, source charge, or the heatmap color range. Opaque
 masks skip field evaluation at covered samples; translucent masks blend over the
 computed field. Rust computes both geometric masks and compositing.
 
-## Color scales and colorbars
+== Color scales and colorbars
 
 `field-colors` defaults to range `(0, 10)`, a signed logarithmic scale with reference
 1, the five-stop Obsino palette, and Oklab interpolation. Colors may be Typst colors
@@ -204,14 +218,14 @@ signed range and a diverging palette, such as `stops: (blue, white, red)`.
 `field-colorbar` uses the same configuration without re-evaluating any sources.
 It defaults to `resolution: (256, 16), orientation: "horizontal", width: 50%`.
 A vertical colorbar places the maximum at the top. The colorbar is evenly spaced
-in the **transformed** coordinate; nonlinear tick positions must use that transform,
+in the *transformed* coordinate; nonlinear tick positions must use that transform,
 not linear interpolation of the original field values. Labels remain in Typst.
 
 `electric-field-heatmap-bytes` and `field-colorbar-bytes` return the raw PNG for
 custom composition. Their counterparts return plain image content and impose
 no figure, legend, caption, alignment, or page rules.
 
-## Limits and errors
+== Limits and errors
 
 The plugin accepts at most 16 MiB of JSON. A raster contains at most 4,194,304
 pixels. Per-source integration is limited to 65,536 nodes, with at least four
@@ -220,8 +234,8 @@ most one billion source/pixel evaluations, including geometric mask checks when
 overlays are enabled. Invalid fields, unknown parameters,
 non-finite geometry, and arithmetic overflow are reported as Typst plugin errors.
 
-## References
+== References
 
-- [Electric fields of charge distributions](https://openstax.org/books/university-physics-volume-2/pages/5-5-calculating-electric-fields-of-charge-distributions): continuous Coulomb integration.
-- [Oklab](https://bottosson.github.io/posts/oklab/): perceptual color interpolation, implemented through the Rust `palette` crate.
-- [Typst plugins](https://typst.app/docs/reference/foundations/plugin/): byte-based WASM interface.
+- #link("https://openstax.org/books/university-physics-volume-2/pages/5-5-calculating-electric-fields-of-charge-distributions")[Electric fields of charge distributions]: continuous Coulomb integration.
+- #link("https://bottosson.github.io/posts/oklab/")[Oklab]: perceptual color interpolation, implemented through the Rust `palette` crate.
+- #link("https://typst.app/docs/reference/foundations/plugin/")[Typst plugins]: byte-based WASM interface.

@@ -15,6 +15,7 @@ serde_json = "1"
 png = "0.18"
 palette = { version = "0.7", default-features = false, features = ["std"] }
 thiserror = "2"
+base64 = "0.22"
 
 [profile.release]
 lto = true

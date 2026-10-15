@@ -42,3 +42,18 @@ pub fn render_electric_field(input: &[u8]) -> Result<Vec<u8>, String> {
 pub fn render_colorbar(input: &[u8]) -> Result<Vec<u8>, String> {
   clio_core::render::heatmap::render_colorbar(&decode(input)?).map_err(|error| error.to_string())
 }
+
+/// Renders a JSON electric-field-line request into self-contained SVG bytes.
+///
+/// # Parameters
+/// * `input`: JSON encoding of `clio_core::electrostatics::field_lines::Request`.
+///
+/// # Returns
+/// SVG bytes containing vector lines, physical-direction arrows, and optional raster layers.
+///
+/// # Errors
+/// Reports decoding, plane compatibility, tracing, and rendering errors to Typst.
+#[cfg_attr(target_arch = "wasm32", wasm_minimal_protocol::wasm_func)]
+pub fn render_electric_field_lines(input: &[u8]) -> Result<Vec<u8>, String> {
+  clio_core::electrostatics::field_lines::render(&decode(input)?).map_err(|error| error.to_string())
+}

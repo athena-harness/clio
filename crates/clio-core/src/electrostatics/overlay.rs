@@ -94,7 +94,7 @@ impl<'a> PreparedOverlay<'a> {
   }
 }
 
-fn distance(source: &Source, position: Vector) -> f64 {
+pub(crate) fn distance(source: &Source, position: Vector) -> f64 {
   match source {
     Source::Point(point) => norm(sub(position, point.position)),
     Source::Segment(segment) => {

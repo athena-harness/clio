@@ -38,6 +38,8 @@
   color: magnitude-colors(), scalar-label: $abs(bold(E))$,
   field: plot-field,
   overlay: source-overlay(),
+  plot: none, legend: true,
+  direction-label: [Arrows follow the electric field.],
 ) = {
   set text(size: 8pt)
   set par(leading: 0.5em)
@@ -49,23 +51,24 @@
       text(size: 11pt, weight: "bold", title),
       block(height: 18pt, description),
       block(height: 16pt, formula),
-      electric-field-heatmap(
+      if plot != none { plot } else { electric-field-heatmap(
         sources, grid: grid, field: field, quantity: quantity, color: color,
         source-overlay: overlay,
-      ),
+      ) },
       layout-grid(
         columns: (1fr, auto, 1fr),
         text(size: 7pt)[#grid.bounds.at(0)],
         text(size: 7pt)[$x$; $y$ increases upward],
         align(right, text(size: 7pt)[#grid.bounds.at(1)]),
       ),
-      field-colorbar(color: color, width: 100%, resolution: (192, 8)),
-      layout-grid(
+      if legend { field-colorbar(color: color, width: 100%, resolution: (192, 8)) }
+      else { block(height: 10pt, text(size: 7pt, direction-label)) },
+      if legend { layout-grid(
         columns: (1fr, auto, 1fr),
         text(size: 7pt)[#color.range.at(0)],
         text(size: 7pt)[#scalar-label / #color.transform.kind],
         align(right, text(size: 7pt)[#color.range.at(1)]),
-      ),
+      ) } else { block(height: 8pt) },
       block(height: 24pt, text(size: 7pt, fill: rgb("#475569"), note)),
     ),
   )

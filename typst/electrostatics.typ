@@ -70,3 +70,51 @@
 #let electric-field-heatmap(sources, width: 100%, ..options) = image(
   electric-field-heatmap-bytes(sources, ..options), format: "png", width: width,
 )
+
+/// Generate explicit local seed coordinates in Rust.
+#let seed-points(points) = (kind: "points", points: points)
+
+/// Generate equally spaced seeds around a local circle in Rust; phase uses radians.
+#let seed-circle(center, radius: 0.14, count: 24, phase: 0) = (
+  kind: "circle", center: center, radius: radius, count: count, phase: phase,
+)
+
+/// Generate local seeds along a segment, including both endpoints.
+#let seed-segment(start, end, count: 24) = (
+  kind: "segment", start: start, end: end, count: count,
+)
+
+/// Configure fixed-step RK4 and termination independently of rendering resolution.
+#let field-line-tracing(
+  step: 0.02, max-steps: 2000, min-field: 0.00000001,
+  source-radius: 0.08, direction: "both", mode: "planar", plane-tolerance: 0.000001,
+) = (
+  step: step, max-steps: max-steps, min-field: min-field, source-radius: source-radius,
+  direction: direction, mode: mode, plane-tolerance: plane-tolerance,
+)
+
+/// Configure SVG stroke and physical-direction arrows in output pixels.
+#let field-line-style(color: "#1e293b", thickness: 1.1, arrow-spacing: 36, arrow-size: 5) = (
+  color: hex-color(color), width: thickness, arrow-spacing: arrow-spacing, arrow-size: arrow-size,
+)
+
+/// Use a solid or transparent background for field lines.
+#let field-line-background(color: white) = (kind: "solid", color: hex-color(color))
+
+/// Place field lines above a field-magnitude heatmap computed in Rust.
+#let field-line-heatmap(color: field-colors()) = (kind: "heatmap", color: color)
+
+/// Trace electric-field lines in Rust and return self-contained SVG bytes.
+#let electric-field-lines-bytes(
+  sources, seeds, grid: field-grid(resolution: (480, 360)),
+  field: field-parameters(), tracing: field-line-tracing(), style: field-line-style(),
+  background: field-line-background(), source-overlay: none,
+) = backend.render_electric_field_lines(bytes(json.encode((
+  sources: sources, seeds: seeds, grid: grid, field: field, tracing: tracing,
+  style: style, background: background, source-overlay: source-overlay,
+))))
+
+/// Display electric-field lines without imposing document layout or captions.
+#let electric-field-lines(sources, seeds, width: 100%, ..options) = image(
+  electric-field-lines-bytes(sources, seeds, ..options), format: "svg", width: width,
+)

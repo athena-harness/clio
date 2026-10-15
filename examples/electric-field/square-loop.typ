@@ -1,14 +1,11 @@
+#import "models.typ": sources-for, grid-for
 #import "../../lib.typ": *
 #import "common.typ": example-panel, line-sampling, magnitude-colors
 
 #example-panel(
   [Uniform square wire loop],
-  (
-    charged-segment((-0.8, -0.8, 0), (0.8, -0.8, 0), samples: line-sampling),
-    charged-segment((0.8, -0.8, 0), (0.8, 0.8, 0), samples: line-sampling),
-    charged-segment((0.8, 0.8, 0), (-0.8, 0.8, 0), samples: line-sampling),
-    charged-segment((-0.8, 0.8, 0), (-0.8, -0.8, 0), samples: line-sampling),
-  ),
+  sources-for("square-loop"),
+  grid: grid-for("square-loop"),
   description: [Four uniformly charged segments form a closed loop.],
   formula: [$lambda = 1, quad "side" = 1.6$],
   color: magnitude-colors(maximum: 16),

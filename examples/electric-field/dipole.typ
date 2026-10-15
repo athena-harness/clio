@@ -1,9 +1,11 @@
+#import "models.typ": sources-for, grid-for
 #import "../../lib.typ": *
 #import "common.typ": example-panel, magnitude-colors
 
 #example-panel(
   [Electric dipole],
-  (point-charge((-0.7, 0, 0)), point-charge((0.7, 0, 0), charge: -1)),
+  sources-for("dipole"),
+  grid: grid-for("dipole"),
   description: [Equal opposite charges with zero net charge.],
   formula: [$q_1 = +1, quad q_2 = -1, quad d = 1.4$],
   color: magnitude-colors(maximum: 8),

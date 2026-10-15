@@ -1,9 +1,11 @@
+#import "models.typ": sources-for, grid-for
 #import "../../lib.typ": *
 #import "common.typ": example-panel, yz-plane, surface-sampling, magnitude-colors
 
 #example-panel(
   [Infinite plane with a hole],
-  (charged-plane-with-hole(0.7, plane: yz-plane(), ..surface-sampling),),
+  sources-for("plane-with-hole"),
+  grid: grid-for("plane-with-hole"),
   description: [A uniformly charged yz plane outside a circular opening.],
   formula: [$sigma = 1, quad R_"hole" = 0.7$],
   color: magnitude-colors(maximum: 8),
