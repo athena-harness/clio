@@ -4,7 +4,7 @@
 
 Electric-field lines are traced and rendered entirely in Rust. The WASM plugin
 returns self-contained SVG bytes with vector strokes and arrowheads. Optional
-heatmap and source-mask layers are embedded PNGs; no external files are referenced
+heatmaps are embedded PNGs; source masks are vector geometry. No external files are referenced
 by the SVG.
 
 ```typ
@@ -18,8 +18,8 @@ by the SVG.
   charges,
   (seed-circle((-0.7, 0), radius: 0.14, count: 24),),
   grid: field-grid(resolution: (480, 360)),
-  tracing: field-line-tracing(step: 0.02),
-  source-overlay: source-overlay(color: "#8b5cf6", thickness: 0.15),
+  tracing: field-line-tracing(step: 0.02, source-radius: 0.02),
+  source-overlay: source-overlay(color: "#8b5cf6", thickness: 0.04),
 )
 ```
 
@@ -29,11 +29,15 @@ an individual example from `examples/electric-field-lines/`.
 
 == Matching the heatmap gallery
 
-Sixteen field-line scenes match the sixteen heatmap scenes by filename. Gallery
+Sixteen baseline field-line scenes match the baseline heatmap scenes by filename. Gallery
 pages 5--8 repeat the order of heatmap pages 1--4. Shared definitions in
 `examples/electric-field/models.typ` keep source positions, charges, densities,
 quadrature counts, bounds, and observation planes identical. The SVG viewport is
 three times the heatmap resolution; changing this does not change the model.
+
+Pages 9--10 add four custom models with matching heatmaps and field lines. These
+use the same raster resolution in both views; their shared sources and seeds
+live in `examples/electric-field/custom-models.typ`.
 
 #table(
   columns: (1.2fr, 2.8fr),
@@ -151,4 +155,4 @@ Typst image content. The wrapper imposes no captions, legends, or page layout.
 At most 1024 seeds and 10000 steps per branch are accepted. The maximum possible
 vertex count, including both branches, is 4194304. Tracing has a runtime budget
 of one billion source evaluations and geometric termination checks. Raster
-backgrounds and masks retain their own existing pixel/evaluation limits.
+backgrounds retain their pixel limits; vector masks have a separate geometry budget.

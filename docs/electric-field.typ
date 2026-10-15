@@ -10,23 +10,26 @@ typst compile --root . examples/gallery.typ /tmp/clio-gallery.pdf
 ```
 
 All Coulomb evaluation, continuous integration, scalar extraction, color mapping,
-and PNG encoding run in Rust. Typst creates source descriptions and composes the
+PNG encoding, and SVG composition run in Rust. Typst creates source descriptions and composes the
 returned image with formulas, labels, captions, and page layout.
 
 == Example gallery
 
-`examples/gallery.typ` includes sixteen independent examples from
-`examples/electric-field/`, followed by sixteen matching electric-field-line examples from
+`examples/gallery.typ` includes twenty heatmap examples from
+`examples/electric-field/` and twenty matching field-line examples from
 `examples/electric-field-lines/`. Each example can also be compiled on its own:
 
 ```sh
 typst compile --root . examples/electric-field/dipole.typ /tmp/clio-dipole.pdf
 ```
 
-The eight-page gallery uses the same ordering for both sets: heatmap pages 1--4
+The first eight gallery pages use the same ordering for both sets: heatmap pages 1--4
 correspond to field-line pages 5--8. `examples/electric-field/models.typ` owns
 source geometry, charge densities, quadrature counts, and observation frames
 shared by both sets, so changing a model updates both views.
+
+Pages 9--10 add four custom-geometry models and their matching field-line views.
+See the Custom charge geometry chapter for parameter expressions and triangle meshes.
 
 The gallery covers an isolated charge, equal and unequal charge pairs, a dipole,
 square and axial quadrupoles, a finite rod, a long-wire approximation, opposite
@@ -52,6 +55,9 @@ prescribed charges rather than self-consistent charge redistribution on conducto
 The long-wire example is finite, and the ring example uses a narrow annulus with
 total charge normalized to one. Their approximation assumptions are stated in
 the panels. Positive and negative field components use a diverging palette.
+
+Example masks use a shared thickness of 0.04 world units. SVG geometry keeps
+these thin lines and small point markers smooth at any display size.
 
 == Independent configuration
 
@@ -182,9 +188,9 @@ example at observation height 0.35 consequently has no visible source masks.
 #electric-field-heatmap(
   (point-charge((-0.7, 0, 0)), point-charge((0.7, 0, 0), charge: -1)),
   source-overlay: source-overlay(
-    color: "#ede9fe", thickness: 0.14,
+    color: "#ede9fe", thickness: 0.04,
     overrides: (
-      (source: 1, style: source-style(color: "#bae6fd", thickness: 0.14)),
+      (source: 1, style: source-style(color: "#bae6fd", thickness: 0.04)),
     ),
   ),
 )
@@ -196,9 +202,9 @@ Color strings or Typst colors are accepted, including alpha for translucent
 overlays. Later sources take visual precedence when masks overlap.
 
 Thickness uses the same length unit as source coordinates and has no effect on
-field softening, quadrature, source charge, or the heatmap color range. Opaque
-masks skip field evaluation at covered samples; translucent masks blend over the
-computed field. Rust computes both geometric masks and compositing.
+field softening, quadrature, source charge, or the heatmap color range. Masks
+are drawn as vector geometry above the embedded field raster. Translucent sources
+composite in source order; later sources appear above earlier ones.
 
 == Color scales and colorbars
 
@@ -221,17 +227,35 @@ A vertical colorbar places the maximum at the top. The colorbar is evenly spaced
 in the *transformed* coordinate; nonlinear tick positions must use that transform,
 not linear interpolation of the original field values. Labels remain in Typst.
 
-`electric-field-heatmap-bytes` and `field-colorbar-bytes` return the raw PNG for
+`electric-field-heatmap-bytes` and `field-colorbar-bytes` return SVG bytes for
 custom composition. Their counterparts return plain image content and impose
 no figure, legend, caption, alignment, or page rules.
+
+== SVG output and vector geometry
+
+All public byte renderers return self-contained SVG. A heatmap contains an embedded
+PNG field layer and optional vector source masks. Field lines and source markers
+are SVG paths or circles; colorbars are SVG gradients. No external image files
+are referenced. For direct composition, use `image(data, format: "svg")`.
+
+Increasing `field-grid.resolution` refines field sampling. Source masks are drawn
+independently: ordinary points, segments, and circular sections use SVG primitives;
+complex slices use adaptive vector contours of the prepared geometry. Their contour
+cells have a diagonal at most roughly 1/2048 of the observation diagonal, with
+further refinement for thin masks. Increasing source integration samples improves
+the geometric approximation of a parameterized model, independently of raster size.
+
+The public heatmap and colorbar byte functions now return SVG instead of PNG;
+callers using their bytes directly must select the SVG image format. The Rust
+core retains its low-level PNG routines for scalar layers and native callers.
 
 == Limits and errors
 
 The plugin accepts at most 16 MiB of JSON. A raster contains at most 4,194,304
 pixels. Per-source integration is limited to 65,536 nodes, with at least four
 angular samples for surfaces and 262,144 total nodes. A heatmap may require at
-most one billion source/pixel evaluations, including geometric mask checks when
-overlays are enabled. Invalid fields, unknown parameters,
+most one billion source/pixel evaluations. Vector masks have a separate budget
+of one billion conservative geometry evaluations and 20 subdivision levels. Invalid fields, unknown parameters,
 non-finite geometry, and arithmetic overflow are reported as Typst plugin errors.
 
 == References

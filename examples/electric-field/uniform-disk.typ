@@ -1,6 +1,6 @@
-#import "models.typ": sources-for, grid-for
+#import "models.typ": grid-for, sources-for
 #import "../../lib.typ": *
-#import "common.typ": example-panel, yz-plane, surface-sampling, magnitude-colors
+#import "common.typ": example-panel, magnitude-colors, surface-sampling, yz-plane
 
 #example-panel(
   [Uniformly charged disk],

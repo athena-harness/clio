@@ -16,7 +16,8 @@
   #text(size: 11pt, fill: muted)[A Typst library with a Rust and WebAssembly backend]
   #v(10mm)
   #electric-field-lines(
-    charges, seeds,
+    charges,
+    seeds,
     grid: field-grid(resolution: (480, 360)),
     background: field-line-heatmap(color: palette),
     style: field-line-style(color: white, thickness: 1, arrow-size: 4),
@@ -34,10 +35,16 @@
 
 = Contents <contents>
 
-#grid(columns: (1fr, 1fr), gutter: 10mm,
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 10mm,
   [
     #text(size: 13pt, weight: "bold")[Guide]
-    #outline(title: none, target: selector(heading).before(<function-reference>, inclusive: false).after(<contents>, inclusive: false), depth: 2)
+    #outline(
+      title: none,
+      target: selector(heading).before(<function-reference>, inclusive: false).after(<contents>, inclusive: false),
+      depth: 2,
+    )
   ],
   [
     #text(size: 13pt, weight: "bold")[Reference]
@@ -51,7 +58,7 @@
 
 Clio evaluates electric fields from prescribed point charges and continuous
 charge distributions. Its Rust backend integrates the sources, samples the field,
-and returns PNG heatmaps or SVG field lines through a byte-only WebAssembly
+and returns SVG diagrams through a byte-only WebAssembly
 interface. The Typst layer provides composable configuration dictionaries and
 image content that fits into ordinary documents.
 
@@ -119,7 +126,12 @@ field from positive toward negative charge.
     ),
   )
   ```,
-  electric-field-lines(charges, seeds, grid: field-grid(resolution: (360, 270)), style: field-line-style(arrow-size: 4)),
+  electric-field-lines(
+    charges,
+    seeds,
+    grid: field-grid(resolution: (360, 270)),
+    style: field-line-style(arrow-size: 4),
+  ),
   caption: [A normalized-field RK4 trace, not a charged particle trajectory.],
 )
 
@@ -141,6 +153,7 @@ names link to their reference entries.
 
 #include "electric-field.typ"
 #include "electric-field-lines.typ"
+#include "custom-geometry.typ"
 #pagebreak()
 = Function reference <function-reference>
 
@@ -153,11 +166,11 @@ charges, and lengths use one consistent unit system chosen by the caller.
 
 #v(10pt)
 #block(text(size: 8pt, fill: muted)[
-*About this manual.*
+  *About this manual.*
 
-This manual is written entirely in Typst. Its guide/reference organization,
-code-and-output examples, and linked API entries take inspiration from the
-#link("https://github.com/fletcher-package/fletcher/blob/main/docs/manual.typ")[Fletcher manual].
-The local styles in `docs/style.typ` require no external documentation package.
-All displayed field diagrams are rendered by Clio during compilation.
+  This manual is written entirely in Typst. Its guide/reference organization,
+  code-and-output examples, and linked API entries take inspiration from the
+  #link("https://github.com/fletcher-package/fletcher/blob/main/docs/manual.typ")[Fletcher manual].
+  The local styles in `docs/style.typ` require no external documentation package.
+  All displayed field diagrams are rendered by Clio during compilation.
 ])

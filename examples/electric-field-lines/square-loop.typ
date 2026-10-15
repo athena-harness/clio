@@ -2,7 +2,8 @@
 #import "common.typ": line-panel
 
 #line-panel(
-  "square-loop", [Uniform square-loop field lines],
+  "square-loop",
+  [Uniform square-loop field lines],
   (
     seed-circle((0, 0), radius: 0.4, count: 12),
     seed-segment((-0.6, -0.95), (0.6, -0.95), count: 6),

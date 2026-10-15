@@ -1,5 +1,5 @@
 #import "../../lib.typ": *
-#import "common.typ": xy-grid, yz-plane, surface-sampling, integration-detail, line-sampling
+#import "common.typ": integration-detail, line-sampling, surface-sampling, xy-grid, yz-plane
 
 // Physical source definitions shared by heatmap and field-line examples.
 #let inner-radius = 0.77
@@ -35,10 +35,16 @@
     charged-segment((-0.8, 0.8, 0), (-0.8, -0.8, 0), samples: line-sampling),
   ),
   "uniform-disk": (charged-disk(0.8, plane: yz-plane(), ..surface-sampling),),
-  "charged-ring": (charged-annulus(
-    inner-radius, outer-radius, density: density, plane: yz-plane(),
-    radial-samples: 4 * integration-detail, angular-samples: 96 * integration-detail,
-  ),),
+  "charged-ring": (
+    charged-annulus(
+      inner-radius,
+      outer-radius,
+      density: density,
+      plane: yz-plane(),
+      radial-samples: 4 * integration-detail,
+      angular-samples: 96 * integration-detail,
+    ),
+  ),
   "uniform-annulus": (charged-annulus(0.4, 0.9, plane: yz-plane(), ..surface-sampling),),
   "plane-with-hole": (charged-plane-with-hole(0.7, plane: yz-plane(), ..surface-sampling),),
   "parallel-disks": (

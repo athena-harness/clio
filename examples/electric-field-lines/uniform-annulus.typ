@@ -2,7 +2,8 @@
 #import "common.typ": line-panel
 
 #line-panel(
-  "uniform-annulus", [Uniform-annulus field lines],
+  "uniform-annulus",
+  [Uniform-annulus field lines],
   (
     seed-segment((-0.14, 0.48), (-0.14, 0.82), count: 8),
     seed-segment((0.14, 0.48), (0.14, 0.82), count: 8),

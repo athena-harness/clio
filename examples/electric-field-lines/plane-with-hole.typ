@@ -2,7 +2,8 @@
 #import "common.typ": line-panel
 
 #line-panel(
-  "plane-with-hole", [Infinite plane with a hole],
+  "plane-with-hole",
+  [Infinite plane with a hole],
   (
     seed-segment((-0.14, 0.8), (-0.14, 1.4), count: 8),
     seed-segment((0.14, 0.8), (0.14, 1.4), count: 8),

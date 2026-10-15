@@ -1,4 +1,4 @@
-#import "models.typ": sources-for, grid-for
+#import "models.typ": grid-for, sources-for
 #import "../../lib.typ": *
 #import "common.typ": example-panel, line-sampling, magnitude-colors
 

@@ -1,6 +1,7 @@
 // Clio's public Typst package entrypoint.
 #import "typst/render.typ" as rendering
 #import "typst/electrostatics.typ" as electrostatics
+#import "typst/custom-geometry.typ" as custom-geometry
 
 #let field-plane = rendering.field-plane
 #let field-grid = rendering.field-grid
@@ -16,6 +17,10 @@
 #let charged-disk = electrostatics.charged-disk
 #let charged-annulus = electrostatics.charged-annulus
 #let charged-plane-with-hole = electrostatics.charged-plane-with-hole
+#let charged-curve = custom-geometry.charged-curve
+#let charged-surface = custom-geometry.charged-surface
+#let charged-volume = custom-geometry.charged-volume
+#let charged-triangle-mesh = custom-geometry.charged-triangle-mesh
 #let field-parameters = electrostatics.field-parameters
 #let field-magnitude = electrostatics.field-magnitude
 #let field-component = electrostatics.field-component

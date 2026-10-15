@@ -2,18 +2,18 @@
 
 use super::{
   heatmap::{self, Quantity},
-  overlay::{distance, PreparedOverlay, SourceOverlay},
+  overlay::{PreparedOverlay, SourceOverlay},
   ElectricField, FieldOptions, Source,
 };
 use crate::{
   geometry::{dot, norm},
   render::{
-    color::{parse_color, ColorScale, PreparedScale},
+    color::{parse_color, ColorScale},
     heatmap::Grid,
+    svg::{self, hex},
   },
   require, Error,
 };
-use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use std::{f64::consts::TAU, fmt::Write};
 
@@ -286,21 +286,19 @@ fn charge_budget(budget: &mut u64, count: usize) -> Result<(), Error> {
   Ok(())
 }
 
-fn near_source(p: Point, request: &Request, budget: &mut u64) -> Result<bool, Error> {
+fn near_source(p: Point, request: &Request, field: &ElectricField, budget: &mut u64) -> Result<bool, Error> {
   if request.tracing.source_radius == 0.0 {
     return Ok(false);
   }
-  charge_budget(budget, request.sources.len())?;
+  charge_budget(budget, field.geometry_evaluation_count())?;
   let world = request.grid.plane.position(p[0], p[1]);
-  Ok(request.sources.iter().any(|source| {
-    let charge = match source {
-      Source::Point(source) => source.charge,
-      Source::Segment(source) => source.density,
-      Source::Annulus(source) => source.density,
-      Source::PlaneWithHole(source) => source.density,
-    };
-    charge != 0.0 && distance(source, world) <= request.tracing.source_radius
-  }))
+  Ok(
+    request
+      .sources
+      .iter()
+      .enumerate()
+      .any(|(index, source)| field.source_distance(index, source, world, true) <= request.tracing.source_radius),
+  )
 }
 
 fn tangent(
@@ -348,7 +346,7 @@ fn branch(
   let mut p = seed;
   let h = request.tracing.step;
   for _ in 0..request.tracing.max_steps {
-    if near_source(p, request, budget)? {
+    if near_source(p, request, field, budget)? {
       break;
     }
     let Some(k1) = tangent(p, sign, request, field, budget)? else {
@@ -387,7 +385,7 @@ fn branch(
     }
     // Check the midpoint too, so a short crossing cannot skip a thin charged surface.
     let midpoint = std::array::from_fn(|i| (p[i] + next[i]) / 2.0);
-    if near_source(midpoint, request, budget)? {
+    if near_source(midpoint, request, field, budget)? {
       result.push(midpoint);
       break;
     }
@@ -409,7 +407,7 @@ fn branch(
 /// # Errors
 /// Reports tracing, configuration, numerical, and image encoding errors.
 pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
-  let count = request.grid.validate()?;
+  request.grid.validate()?;
   let style = &request.style;
   require(
     style.width.is_finite() && style.width > 0.0 && style.width <= 64.0,
@@ -430,17 +428,11 @@ pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
   let overlay = request
     .source_overlay
     .as_ref()
-    .map(|o| PreparedOverlay::new(&request.sources, o))
+    .map(|o| PreparedOverlay::new(&request.sources, &field, o))
     .transpose()?;
-  require(
-    overlay.is_none() || (count as u64) * (request.sources.len() as u64) <= 1_000_000_000,
-    "source overlay evaluation budget exceeded",
-  )?;
   let lines = trace_prepared(request, &field)?;
   let [width, height] = request.grid.resolution;
-  let mut svg = format!(
-    "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\">"
-  );
+  let mut svg = svg::begin(request.grid.resolution);
   match &request.background {
     Background::Solid { color } => {
       let color = parse_color(color)?;
@@ -462,7 +454,7 @@ pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
         singularity_color: "#00000000".into(),
         source_overlay: None,
       })?;
-      embed_png(&mut svg, &png, width, height);
+      svg::embed_png(&mut svg, &png, request.grid.resolution);
     }
   }
   let [xmin, xmax, ymin, ymax] = request.grid.bounds;
@@ -487,33 +479,9 @@ pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
     draw_arrows(&mut svg, &pixels, style, rgba)?;
   }
   if let Some(overlay) = overlay {
-    let clear = PreparedScale::new(&ColorScale {
-      stops: vec!["#00000000".into(); 2],
-      ..ColorScale::default()
-    })?;
-    let png = crate::render::heatmap::render_with_overlay(
-      &request.grid,
-      &clear,
-      [0; 4],
-      |_| Ok(Some(0.0)),
-      |p| overlay.pixel(p),
-    )?;
-    embed_png(&mut svg, &png, width, height);
+    overlay.write_svg(&mut svg, &request.grid)?;
   }
-  svg.push_str("</svg>");
-  Ok(svg.into_bytes())
-}
-
-fn hex(color: [u8; 4]) -> String {
-  format!("#{:02x}{:02x}{:02x}", color[0], color[1], color[2])
-}
-
-fn embed_png(svg: &mut String, png: &[u8], width: u32, height: u32) {
-  // Embedded PNG dimensions match the SVG viewport exactly.
-  svg.push_str(&format!(
-    "<image width=\"{width}\" height=\"{height}\" href=\"data:image/png;base64,{}\"/>",
-    STANDARD.encode(png)
-  ));
+  Ok(svg::finish(svg))
 }
 
 fn draw_arrows(svg: &mut String, points: &[Point], style: &LineStyle, color: [u8; 4]) -> Result<(), Error> {

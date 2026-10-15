@@ -1,6 +1,6 @@
-#import "models.typ": sources-for, grid-for
+#import "models.typ": grid-for, sources-for
 #import "../../lib.typ": *
-#import "common.typ": example-panel, yz-plane, integration-detail, magnitude-colors
+#import "common.typ": example-panel, integration-detail, magnitude-colors, yz-plane
 
 #example-panel(
   [Charged-ring approximation],

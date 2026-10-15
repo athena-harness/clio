@@ -1,6 +1,6 @@
-#import "models.typ": sources-for, grid-for
+#import "models.typ": grid-for, sources-for
 #import "../../lib.typ": *
-#import "common.typ": example-panel, xy-grid, surface-sampling, signed-colors
+#import "common.typ": example-panel, signed-colors, surface-sampling, xy-grid
 
 #example-panel(
   [Opposite coplanar disks],
