@@ -57,3 +57,27 @@ pub fn render_colorbar(input: &[u8]) -> Result<Vec<u8>, String> {
 pub fn render_electric_field_lines(input: &[u8]) -> Result<Vec<u8>, String> {
   clio_core::electrostatics::field_lines::render(&decode(input)?).map_err(|error| error.to_string())
 }
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AnnotatedLines {
+  diagram: clio_core::electrostatics::field_lines::Request,
+  endpoints: clio_core::electrostatics::field_lines::EndpointStyle,
+}
+
+/// Renders field lines with explicit markers for numerical trace termination.
+///
+/// # Parameters
+/// * `input`: JSON containing a field-line `diagram` and `endpoints` styling.
+///
+/// # Returns
+/// Self-contained SVG bytes with trace reasons and optional diagnostic markers.
+///
+/// # Errors
+/// Reports invalid requests, tracing failures, and marker styling errors.
+#[cfg_attr(target_arch = "wasm32", wasm_minimal_protocol::wasm_func)]
+pub fn render_electric_field_lines_annotated(input: &[u8]) -> Result<Vec<u8>, String> {
+  let request: AnnotatedLines = decode(input)?;
+  clio_core::electrostatics::field_lines::render_annotated(&request.diagram, &request.endpoints)
+    .map_err(|error| error.to_string())
+}

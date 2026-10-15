@@ -17,7 +17,51 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{f64::consts::TAU, fmt::Write};
 
+mod endpoints;
+pub use endpoints::EndpointStyle;
+
 type Point = [f64; 2];
+
+/// Why a branch stopped; reasons describe numerical termination, not electric charges.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Termination {
+  /// This endpoint is the seed of an untraced branch.
+  Seed,
+  /// The configured capture distance from charged geometry was reached.
+  Source,
+  /// The observation rectangle was reached.
+  Bounds,
+  /// An RK4 evaluation encountered an in-plane field below the threshold.
+  WeakField,
+  /// An RK4 evaluation encountered an unregularized singularity.
+  Singularity,
+  /// The normalized RK4 step made negligible progress.
+  Stagnation,
+  /// The branch exhausted its configured step count.
+  StepLimit,
+}
+
+/// A local polyline ordered along the field, with a reason for each endpoint.
+#[derive(Clone, Debug, Serialize)]
+pub struct TracedLine {
+  /// Local observation-plane coordinates.
+  pub points: Vec<Point>,
+  /// Reason at the beginning of the field-oriented path.
+  pub start: Termination,
+  /// Reason at the end of the field-oriented path.
+  pub end: Termination,
+}
+
+struct Branch {
+  points: Vec<Point>,
+  termination: Termination,
+}
+
+enum Tangent {
+  Vector(Point),
+  Stop(Termination),
+}
 
 /// Seed generation in the observation plane's local coordinates.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -172,10 +216,31 @@ pub struct Request {
 /// or requests exceeding the source-evaluation and vertex limits.
 pub fn trace(request: &Request) -> Result<Vec<Vec<Point>>, Error> {
   let field = ElectricField::new(&request.sources, request.field)?;
+  Ok(
+    trace_prepared(request, &field)?
+      .into_iter()
+      .map(|line| line.points)
+      .collect(),
+  )
+}
+
+/// Traces field-oriented paths while retaining the reasons their branches ended.
+///
+/// # Parameters
+/// * `request`: the same sources, seeds, and settings accepted by `trace`.
+///
+/// # Returns
+/// Paths with independent start and end reasons. Weak fields and stagnation do not
+/// establish an accurately located field null or a physical charge source.
+///
+/// # Errors
+/// Reports the same validation, planarity, and evaluation-budget failures as `trace`.
+pub fn trace_detailed(request: &Request) -> Result<Vec<TracedLine>, Error> {
+  let field = ElectricField::new(&request.sources, request.field)?;
   trace_prepared(request, &field)
 }
 
-fn trace_prepared(request: &Request, field: &ElectricField) -> Result<Vec<Vec<Point>>, Error> {
+fn trace_prepared(request: &Request, field: &ElectricField) -> Result<Vec<TracedLine>, Error> {
   request.grid.validate()?;
   let options = request.tracing;
   require(
@@ -226,14 +291,23 @@ fn trace_prepared(request: &Request, field: &ElectricField) -> Result<Vec<Vec<Po
     let mut backward = if !matches!(options.direction, Direction::Forward) {
       branch(seed, -1.0, request, field, &mut budget)?
     } else {
-      vec![seed]
+      Branch {
+        points: vec![seed],
+        termination: Termination::Seed,
+      }
     };
-    backward.reverse();
+    backward.points.reverse();
+    let mut end = Termination::Seed;
     if !matches!(options.direction, Direction::Backward) {
       let forward = branch(seed, 1.0, request, field, &mut budget)?;
-      backward.extend(forward.into_iter().skip(1));
+      end = forward.termination;
+      backward.points.extend(forward.points.into_iter().skip(1));
     }
-    lines.push(backward);
+    lines.push(TracedLine {
+      points: backward.points,
+      start: backward.termination,
+      end,
+    });
   }
   Ok(lines)
 }
@@ -301,17 +375,11 @@ fn near_source(p: Point, request: &Request, field: &ElectricField, budget: &mut 
   )
 }
 
-fn tangent(
-  p: Point,
-  sign: f64,
-  request: &Request,
-  field: &ElectricField,
-  budget: &mut u64,
-) -> Result<Option<Point>, Error> {
+fn tangent(p: Point, sign: f64, request: &Request, field: &ElectricField, budget: &mut u64) -> Result<Tangent, Error> {
   charge_budget(budget, field.evaluation_count())?;
   let plane = request.grid.plane;
   let Some(vector) = field.at(plane.position(p[0], p[1]))? else {
-    return Ok(None);
+    return Ok(Tangent::Stop(Termination::Singularity));
   };
   let full = norm(vector);
   let local = [dot(vector, plane.horizontal), dot(vector, plane.vertical)];
@@ -326,48 +394,53 @@ fn tangent(
     )?;
   }
   if length <= request.tracing.min_field {
-    return Ok(None);
+    return Ok(Tangent::Stop(Termination::WeakField));
   }
-  Ok(Some(local.map(|v| sign * v / length)))
+  Ok(Tangent::Vector(local.map(|v| sign * v / length)))
 }
 
 fn shifted(p: Point, d: Point, scale: f64) -> Point {
   std::array::from_fn(|i| p[i] + d[i] * scale)
 }
 
-fn branch(
-  seed: Point,
-  sign: f64,
-  request: &Request,
-  field: &ElectricField,
-  budget: &mut u64,
-) -> Result<Vec<Point>, Error> {
+fn branch(seed: Point, sign: f64, request: &Request, field: &ElectricField, budget: &mut u64) -> Result<Branch, Error> {
   let mut result = vec![seed];
   let mut p = seed;
   let h = request.tracing.step;
+  macro_rules! direction {
+    ($position:expr) => {
+      match tangent($position, sign, request, field, budget)? {
+        Tangent::Vector(vector) => vector,
+        Tangent::Stop(termination) => {
+          return Ok(Branch {
+            points: result,
+            termination,
+          })
+        }
+      }
+    };
+  }
   for _ in 0..request.tracing.max_steps {
     if near_source(p, request, field, budget)? {
-      break;
+      return Ok(Branch {
+        points: result,
+        termination: Termination::Source,
+      });
     }
-    let Some(k1) = tangent(p, sign, request, field, budget)? else {
-      break;
-    };
-    let Some(k2) = tangent(shifted(p, k1, h / 2.0), sign, request, field, budget)? else {
-      break;
-    };
-    let Some(k3) = tangent(shifted(p, k2, h / 2.0), sign, request, field, budget)? else {
-      break;
-    };
-    let Some(k4) = tangent(shifted(p, k3, h), sign, request, field, budget)? else {
-      break;
-    };
+    let k1 = direction!(p);
+    let k2 = direction!(shifted(p, k1, h / 2.0));
+    let k3 = direction!(shifted(p, k2, h / 2.0));
+    let k4 = direction!(shifted(p, k3, h));
     let next = std::array::from_fn(|i| p[i] + h * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]) / 6.0);
     require(
       next.iter().all(|v| v.is_finite()),
       "field-line coordinates must remain finite",
     )?;
     if (next[0] - p[0]).hypot(next[1] - p[1]) < h * 1e-6 {
-      break;
+      return Ok(Branch {
+        points: result,
+        termination: Termination::Stagnation,
+      });
     }
     if !inside(next, request.grid.bounds) {
       let bounds = request.grid.bounds;
@@ -381,18 +454,27 @@ fn branch(
         }
       }
       result.push(std::array::from_fn(|i| p[i] + t * (next[i] - p[i])));
-      break;
+      return Ok(Branch {
+        points: result,
+        termination: Termination::Bounds,
+      });
     }
     // Check the midpoint too, so a short crossing cannot skip a thin charged surface.
     let midpoint = std::array::from_fn(|i| (p[i] + next[i]) / 2.0);
     if near_source(midpoint, request, field, budget)? {
       result.push(midpoint);
-      break;
+      return Ok(Branch {
+        points: result,
+        termination: Termination::Source,
+      });
     }
     result.push(next);
     p = next;
   }
-  Ok(result)
+  Ok(Branch {
+    points: result,
+    termination: Termination::StepLimit,
+  })
 }
 
 /// Computes field lines and renders them as self-contained SVG bytes.
@@ -401,12 +483,33 @@ fn branch(
 /// * `request`: sources, seed generators, tracing controls, background, and styling.
 ///
 /// # Returns
-/// Vector strokes and arrowheads, with optional embedded heatmap and source-mask PNGs.
+/// Vector strokes, arrowheads, and source masks, with an optional embedded heatmap.
 /// All data is generated in memory; external resources are not referenced.
 ///
 /// # Errors
 /// Reports tracing, configuration, numerical, and image encoding errors.
 pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
+  render_impl(request, None)
+}
+
+/// Adds optional numerical-termination markers to a self-contained field-line SVG.
+///
+/// # Parameters
+/// * `request`: the ordinary field-line rendering request.
+/// * `endpoints`: marker styling for non-source, non-boundary trace terminations.
+///
+/// # Returns
+/// SVG bytes with field lines, source masks, and deduplicated diagnostic markers.
+/// Markers identify numerical outcomes; they do not certify physical nulls.
+///
+/// # Errors
+/// Reports tracing failures, invalid styles, or rendering errors.
+pub fn render_annotated(request: &Request, endpoints: &EndpointStyle) -> Result<Vec<u8>, Error> {
+  endpoints.validate()?;
+  render_impl(request, Some(endpoints))
+}
+
+fn render_impl(request: &Request, endpoints: Option<&EndpointStyle>) -> Result<Vec<u8>, Error> {
   request.grid.validate()?;
   let style = &request.style;
   require(
@@ -465,11 +568,17 @@ pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
     ]
   };
   for line in &lines {
-    if line.len() < 2 {
+    if line.points.len() < 2 {
       continue;
     }
-    let pixels: Vec<_> = line.iter().copied().map(pixel).collect();
-    svg.push_str("<path d=\"");
+    let pixels: Vec<_> = line.points.iter().copied().map(pixel).collect();
+    write!(
+      svg,
+      "<path data-start-termination=\"{}\" data-end-termination=\"{}\" d=\"",
+      line.start.name(),
+      line.end.name()
+    )
+    .map_err(|_| Error::Numerical("SVG formatting failed"))?;
     for (i, p) in pixels.iter().enumerate() {
       write!(svg, "{} {:.5} {:.5} ", if i == 0 { "M" } else { "L" }, p[0], p[1])
         .map_err(|_| Error::Numerical("SVG formatting failed"))?;
@@ -480,6 +589,9 @@ pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
   }
   if let Some(overlay) = overlay {
     overlay.write_svg(&mut svg, &request.grid)?;
+  }
+  if let Some(style) = endpoints {
+    endpoints::draw(&mut svg, &lines, &pixel, style)?;
   }
   Ok(svg::finish(svg))
 }

@@ -33,6 +33,7 @@
 #let seed-segment = electrostatics.seed-segment
 #let field-line-tracing = electrostatics.field-line-tracing
 #let field-line-style = electrostatics.field-line-style
+#let field-line-endpoints = electrostatics.field-line-endpoints
 #let field-line-background = electrostatics.field-line-background
 #let field-line-heatmap = electrostatics.field-line-heatmap
 #let electric-field-lines = electrostatics.electric-field-lines

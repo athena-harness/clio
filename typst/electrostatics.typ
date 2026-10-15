@@ -165,6 +165,13 @@
 /// Place field lines above a field-magnitude heatmap computed in Rust.
 #let field-line-heatmap(color: field-colors()) = (kind: "heatmap", color: color)
 
+/// Mark numerical trace termination; symbols do not certify an exact field null.
+#let field-line-endpoints(color: "#b45309", size: 2.5, thickness: 0.6) = (
+  color: hex-color(color),
+  size: size,
+  thickness: thickness,
+)
+
 /// Trace electric-field lines in Rust and return self-contained SVG bytes.
 #let electric-field-lines-bytes(
   sources,
@@ -175,16 +182,24 @@
   style: field-line-style(),
   background: field-line-background(),
   source-overlay: none,
-) = backend.render_electric_field_lines(bytes(json.encode((
-  sources: sources,
-  seeds: seeds,
-  grid: grid,
-  field: field,
-  tracing: tracing,
-  style: style,
-  background: background,
-  source-overlay: source-overlay,
-))))
+  endpoints: none,
+) = {
+  let diagram = (
+    sources: sources,
+    seeds: seeds,
+    grid: grid,
+    field: field,
+    tracing: tracing,
+    style: style,
+    background: background,
+    source-overlay: source-overlay,
+  )
+  if endpoints == none {
+    backend.render_electric_field_lines(bytes(json.encode(diagram)))
+  } else {
+    backend.render_electric_field_lines_annotated(bytes(json.encode((diagram: diagram, endpoints: endpoints))))
+  }
+}
 
 /// Display electric-field lines without imposing document layout or captions.
 #let electric-field-lines(sources, seeds, width: 100%, ..options) = image(

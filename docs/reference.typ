@@ -326,6 +326,17 @@
   ("color", "dictionary", "field-colors()", [Palette configuration from field-colors().]),
 ))[Place field lines above a magnitude heatmap with the same sources, frame, and physical parameters. The raster is embedded in the returned SVG; it is not an external image reference.]
 
+#api("field-line-endpoints", "field-line-endpoints(color: \"#b45309\", size: 2.5, thickness: 0.6)", parameters: (
+  ("color", "color / string", "\"#b45309\"", [Color of numerical-termination symbols, including optional alpha.]),
+  ("size", "number", "2.5", [Positive marker radius, at most 32 SVG output pixels.]),
+  ("thickness", "number", "0.6", [Positive outline width, no greater than marker size.]),
+))[
+  Enable markers for stagnation, weak fields, step limits, and singularities through
+  the renderer's `endpoints` parameter. Sources and viewport exits are unmarked.
+  Close symbols with the same reason are merged visually. A marker does not
+  certify an exact field null or a physical charge source.
+]
+
 == Field-line rendering
 
 #api(
@@ -342,7 +353,7 @@
 
 #api(
   "electric-field-lines-bytes",
-  "electric-field-lines-bytes(\n  sources,\n  seeds,\n  grid: field-grid(resolution: (480, 360)),\n  field: field-parameters(),\n  tracing: field-line-tracing(),\n  style: field-line-style(),\n  background: field-line-background(),\n  source-overlay: none,\n)",
+  "electric-field-lines-bytes(\n  sources,\n  seeds,\n  grid: field-grid(resolution: (480, 360)),\n  field: field-parameters(),\n  tracing: field-line-tracing(),\n  style: field-line-style(),\n  background: field-line-background(),\n  source-overlay: none,\n  endpoints: none,\n)",
   returns: "bytes (SVG)",
   parameters: (
     ("sources", "array", "required", [Source dictionaries; their vector fields are added before scalar extraction.]),
@@ -358,5 +369,6 @@
     ("style", "dictionary", "field-line-style()", [SVG stroke and arrow configuration.]),
     ("background", "dictionary", "field-line-background()", [Solid color or field-magnitude heatmap background.]),
     ("source-overlay", "dict / none", "none", [Optional object masks; independent of the field palette.]),
+    ("endpoints", "dict / none", "none", [Optional numerical-termination markers from field-line-endpoints().]),
   ),
 )[Return a self-contained SVG containing vector strokes, arrows, and any background or source masks. Seeds use local plane coordinates; sources use world coordinates. Planar mode rejects a significant normal field component.]

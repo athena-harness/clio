@@ -150,6 +150,46 @@ near half the mask thickness if curves should meet the visible source boundary.
 `electric-field-lines-bytes` returns raw SVG; `electric-field-lines` returns plain
 Typst image content. The wrapper imposes no captions, legends, or page layout.
 
+== Interpreting trace endpoints
+
+An interior line endpoint is not automatically a charge source. Seeds are traced
+in both directions by default; a branch can stop at a source, a boundary, a weak
+field, a singularity, numerical stagnation, or its step limit. The folded-mesh
+example marks non-source terminations explicitly:
+
+```typ
+#electric-field-lines(
+  sources, seeds,
+  endpoints: field-line-endpoints(color: "#b45309", size: 2, thickness: 0.6),
+)
+```
+
+#table(
+  columns: (1fr, 2.5fr),
+  table.header([Marker], [Meaning]),
+  [Open diamond], [Numerical stagnation: the RK4 step made negligible progress.],
+  [Open circle], [An RK4 evaluation encountered the configured in-plane field threshold.],
+  [Open square], [The branch reached its maximum number of integration steps.],
+  [Cross], [An RK4 evaluation encountered an unregularized singularity.],
+)
+
+Normal source captures, viewport exits, and untraced seed endpoints are unmarked.
+Nearby markers of the same reason are merged for display; underlying trace reasons
+are retained per line. These markers describe the numerical computation and do
+not certify an exactly located field null. In particular, a stalled endpoint can
+still have a nonzero field. No additional null-finding or integration-error control
+is performed by enabling markers.
+
+Purple marks the source intersection with the observation plane in the folded-mesh
+example. Its amber diamond marks stagnation near field cancellation. The two marks
+have different meanings: the full folded surface extends outside the displayed
+plane. Seed count and placement control which curves appear, not their flux weights.
+
+Native Rust callers can use `trace_detailed` to obtain field-oriented paths with
+independent `start` and `end` termination reasons. SVG paths also include
+`data-start-termination` and `data-end-termination` attributes. Markers are optional
+and default to `endpoints: none`; their dimensions are output pixels.
+
 == Limits
 
 At most 1024 seeds and 10000 steps per branch are accepted. The maximum possible

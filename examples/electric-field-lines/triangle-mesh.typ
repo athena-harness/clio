@@ -9,7 +9,7 @@
   grid: model.grid,
   description: model.description,
   formula: model.formula,
-  note: model.note,
+  note: [Purple: source cross-section at $z = 0$. Amber diamond: numerical stagnation near field cancellation.],
   color: magnitude-colors(),
   legend: false,
   plot: electric-field-lines(
@@ -19,6 +19,7 @@
     field: plot-field,
     tracing: model.tracing,
     style: field-line-style(thickness: 0.35, arrow-size: 1.8, arrow-spacing: 24),
+    endpoints: field-line-endpoints(size: 2, thickness: 0.6),
     source-overlay: source-overlay(color: "#c4b5fd", thickness: mask-thickness),
   ),
 )
