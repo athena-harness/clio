@@ -1044,7 +1044,7 @@
 
 #api(
   "field-scene",
-  "field-scene(\n  resolution: (640, 480),\n  bounds: ((-2, -1.5, -1.5), (2, 1.5, 1.5)),\n  camera: field-camera(),\n  source-colors: (\"#8b5cf699\", \"#14b8a699\"),\n  source-thickness: 0.6,\n  point-size: 3,\n  slice: field-scene-slice(),\n  lines: none,\n  axes: true,\n)",
+  "field-scene(\n  resolution: (640, 480),\n  bounds: ((-2, -1.5, -1.5), (2, 1.5, 1.5)),\n  camera: field-camera(),\n  source-colors: (\"#8b5cf699\", \"#14b8a699\"),\n  source-thickness: 0.6,\n  curve-radius: 0.02,\n  point-size: 3,\n  slice: field-scene-slice(),\n  lines: none,\n  axes: true,\n)",
   parameters: (
     (
       "resolution",
@@ -1076,7 +1076,16 @@
       "source-thickness",
       "number",
       "0.6",
-      [Positive curve and boundary width, at most 32 output pixels.],
+      [Positive boundary width, at most 32 output pixels. Also controls
+        line-source strokes when curve-radius is zero.],
+    ),
+    (
+      "curve-radius",
+      "number",
+      "0.02",
+      [Display-only line-source tube radius in world units. Nonnegative and at
+        most one quarter of the scene-box diagonal; zero uses strokes. Does not
+        alter the physical model.],
     ),
     (
       "point-size",

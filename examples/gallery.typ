@@ -1,171 +1,89 @@
-#import "electric-field/common.typ": (
-  integration-detail, sample-height, sample-width,
-)
-
+// Each object module composes its heatmap, field lines, and optional spatial view.
 #set page(paper: "a4", margin: 15mm, numbering: "1 / 1")
 #set text(size: 9pt)
-#set par(leading: 0.6em)
-#set heading(numbering: none)
 
-#let gallery-page(title, subtitle, panels, resolution-scale: 1) = {
-  text(size: 22pt, weight: "bold")[Clio / Electric fields]
-  v(5pt)
-  text(size: 13pt, weight: "bold")[#title]
-  v(3pt)
-  text(fill: rgb("#475569"))[#subtitle]
-  v(4pt)
-  text(size: 7pt, fill: rgb("#64748b"))[
-    Relative units; $k_e = 1$, $epsilon = 0.06$. Image: #(
-      sample-width * resolution-scale
-    ) × #(sample-height * resolution-scale); integration detail:
-    #integration-detail. Colors are clipped at the displayed range endpoints.
-    Masks mark source intersections.
-  ]
-  v(10pt)
-  grid(columns: (1fr, 1fr), gutter: 10pt, ..panels)
-}
-
-#gallery-page(
-  [01 / Point charges and superposition],
-  [Isolated sources, cancellation, neutral dipoles, and nonzero net charge.],
-  (
-    include "electric-field/single-charge.typ",
-    include "electric-field/like-charges.typ",
-    include "electric-field/dipole.typ",
-    include "electric-field/unequal-charges.typ",
-  ),
-)
+#include "electric/single-charge.typ"
 
 #pagebreak()
-#gallery-page(
-  [02 / Multipoles and line charges],
-  [Two quadrupole geometries and the transition from a finite rod to a long
-    wire.],
-  (
-    include "electric-field/square-quadrupole.typ",
-    include "electric-field/axial-quadrupole.typ",
-    include "electric-field/finite-line.typ",
-    include "electric-field/long-wire.typ",
-  ),
-)
+
+#include "electric/like-charges.typ"
 
 #pagebreak()
-#gallery-page(
-  [03 / Wires, disks, and rings],
-  [Prescribed line and surface densities reveal different source geometries.],
-  (
-    include "electric-field/line-dipole.typ",
-    include "electric-field/square-loop.typ",
-    include "electric-field/uniform-disk.typ",
-    include "electric-field/charged-ring.typ",
-  ),
-)
+
+#include "electric/dipole.typ"
 
 #pagebreak()
-#gallery-page(
-  [04 / Openings and charged surfaces],
-  [Finite and infinite surfaces, fringing, and signed field components.],
-  (
-    include "electric-field/uniform-annulus.typ",
-    include "electric-field/plane-with-hole.typ",
-    include "electric-field/parallel-disks.typ",
-    include "electric-field/coplanar-disks.typ",
-  ),
-)
+
+#include "electric/unequal-charges.typ"
 
 #pagebreak()
-#gallery-page(
-  [05 / Field lines: point charges],
-  [Same sources as page 1; arrows follow the vector field.],
-  (
-    include "electric-field-lines/single-charge.typ",
-    include "electric-field-lines/like-charges.typ",
-    include "electric-field-lines/dipole.typ",
-    include "electric-field-lines/unequal-charges.typ",
-  ),
-  resolution-scale: 3,
-)
+
+#include "electric/square-quadrupole.typ"
 
 #pagebreak()
-#gallery-page(
-  [06 / Field lines: multipoles and rods],
-  [Same sources as page 2; seeding adapts to discrete and continuous charges.],
-  (
-    include "electric-field-lines/square-quadrupole.typ",
-    include "electric-field-lines/axial-quadrupole.typ",
-    include "electric-field-lines/finite-line.typ",
-    include "electric-field-lines/long-wire.typ",
-  ),
-  resolution-scale: 3,
-)
+
+#include "electric/axial-quadrupole.typ"
 
 #pagebreak()
-#gallery-page(
-  [07 / Field lines: wires, disks, and rings],
-  [Same sources as page 3; interior and exterior regions are seeded
-    separately.],
-  (
-    include "electric-field-lines/line-dipole.typ",
-    include "electric-field-lines/square-loop.typ",
-    include "electric-field-lines/uniform-disk.typ",
-    include "electric-field-lines/charged-ring.typ",
-  ),
-  resolution-scale: 3,
-)
+
+#include "electric/finite-line.typ"
 
 #pagebreak()
-#gallery-page(
-  [08 / Field lines: openings and surfaces],
-  [Same sources as page 4; the elevated coplanar scene uses explicit
-    projection.],
-  (
-    include "electric-field-lines/uniform-annulus.typ",
-    include "electric-field-lines/plane-with-hole.typ",
-    include "electric-field-lines/parallel-disks.typ",
-    include "electric-field-lines/coplanar-disks.typ",
-  ),
-  resolution-scale: 3,
-)
+
+#include "electric/long-wire.typ"
 
 #pagebreak()
-#gallery-page(
-  [09 / Custom geometry: shared field computation],
-  [Parameterized curves, surfaces, volumes, and meshes mixed with built-in
-    sources.],
-  (
-    include "electric-field/charged-arc.typ",
-    include "electric-field/warped-surface.typ",
-    include "electric-field/charged-volume.typ",
-    include "electric-field/triangle-mesh.typ",
-  ),
-)
+
+#include "electric/line-dipole.typ"
 
 #pagebreak()
-#gallery-page(
-  [10 / Field lines: custom geometry],
-  [Identical custom models and observation grids; the same Rust backend traces
-    the field.],
-  (
-    include "electric-field-lines/charged-arc.typ",
-    include "electric-field-lines/warped-surface.typ",
-    include "electric-field-lines/charged-volume.typ",
-    include "electric-field-lines/triangle-mesh.typ",
-  ),
-)
+
+#include "electric/square-loop.typ"
 
 #pagebreak()
-= Clio / Spatial context
 
-Complete source geometry, observation planes, and full-vector three-dimensional
-field lines. Relative units; $k_e = 1$, $epsilon = 0.06$. Transparent surface
-ordering is approximate. Source colors are independent of the slice palette.
+#include "electric/uniform-disk.typ"
 
-#grid(
-  columns: (1fr, 1fr),
-  gutter: 10pt,
-  include "electric-field-3d/triangle-mesh.typ",
-  include "electric-field-3d/warped-surface.typ",
+#pagebreak()
 
-  include "electric-field-3d/charged-volume.typ",
-  include "electric-field-3d/dipole.typ",
-)
+#include "electric/charged-ring.typ"
+
+#pagebreak()
+
+#include "electric/uniform-annulus.typ"
+
+#pagebreak()
+
+#include "electric/plane-with-hole.typ"
+
+#pagebreak()
+
+#include "electric/parallel-disks.typ"
+
+#pagebreak()
+
+#include "electric/coplanar-disks.typ"
+
+#pagebreak()
+
+#include "electric/charged-arc.typ"
+
+#pagebreak()
+
+#include "electric/warped-surface.typ"
+
+#pagebreak()
+
+#include "electric/charged-volume.typ"
+
+#pagebreak()
+
+#include "electric/triangle-mesh.typ"
+
+#pagebreak()
+
+#include "electric/spherical-shell.typ"
+
+#pagebreak()
+
+#include "electric/thick-spherical-shell.typ"

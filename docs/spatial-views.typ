@@ -36,11 +36,12 @@ spatial rendering. The byte renderers continue to return a single planar SVG.
 
 Use #fn("electric-field-scene") or #fn("electric-field-scene-bytes") for a
 standalone view and compose its placement in Typst. The repository example
-`examples/spatial-views.typ` demonstrates both enabled and disabled companions:
+`examples/features/spatial-views.typ` demonstrates both enabled and disabled
+companions:
 
 ```sh
-typst compile --root . examples/spatial-views.typ /tmp/clio-spatial.pdf
-typst compile --root . --input show-3d=false examples/spatial-views.typ /tmp/clio-planar.pdf
+typst compile --root . examples/features/spatial-views.typ /tmp/clio-spatial.pdf
+typst compile --root . --input show-3d=false examples/features/spatial-views.typ /tmp/clio-planar.pdf
 ```
 
 == Geometry, camera, and field sampling
@@ -56,12 +57,26 @@ tracing stops at its boundary. Infinite planes remain infinite in the field
 calculation even though their displayed patch is finite.
 
 Source colors follow source-array order and cycle if fewer colors are supplied.
-Their alpha controls transparency. Source curves and boundary edges have a pixel
-thickness; point charges have a pixel radius. Parameterized geometry uses the
-prepared source cells, and volumes show only the exterior shell of their
-tetrahedral cells. Increasing source samples refines both integration and the
-parameterized display geometry. Built-in round surfaces use a separate fixed
-display tessellation.
+Their alpha controls transparency. Line charges are drawn as shaded tubes with
+the display-only world-space `curve-radius` (default 0.02). Same-color connected
+segments share cross-section rings, including closed loops; exposed ends have
+caps. This radius does not give the physical charge distribution a finite
+thickness or change source capture, field softening, or quadrature. Set it to
+zero for ordinary strokes. Boundary edges use `source-thickness` in pixels; that
+setting also controls the zero-radius stroke mode. Point charges have a pixel
+radius. Parameterized geometry uses the prepared source cells, and volumes show
+only the exterior shell of their tetrahedral cells. Increasing source samples
+refines both integration and the parameterized display geometry. Built-in round
+surfaces use a separate fixed display tessellation.
+
+```typ
+field-scene(curve-radius: 0.025, source-thickness: 0.6)
+```
+
+The tube mesh has 16 radial faces and independently subdivided longitudinal
+display segments. Endpoint welding uses a small tolerance relative to the scene
+box and affects display connectivity only. Source colors, including alpha, apply
+to the tubes. Surface charges retain their actual surface geometry.
 
 The default slice is pale blue, and its arrow indicates the positive observation
 normal. Set `slice: none` to hide it, or enable a magnitude heatmap:

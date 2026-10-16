@@ -28,6 +28,16 @@ pub(super) struct Canvas<'a> {
 }
 
 impl Canvas<'_> {
+  pub fn shade(&self, mut color: [u8; 4], normal: Vector) -> [u8; 4] {
+    let light = add(mul(self.projection.toward, 0.8), [0.0, 0.0, 0.7]);
+    let light = mul(light, 1.0 / norm(light));
+    let illumination = 0.35 + 0.65 * dot(normal, light).clamp(0.0, 1.0);
+    for channel in &mut color[..3] {
+      *channel = (f64::from(*channel) * illumination).round() as u8;
+    }
+    color
+  }
+
   fn push(&mut self, shape: Shape, color: [u8; 4], depth: f64) -> Result<(), Error> {
     require(
       self.primitives.len() < 262_144,
@@ -113,7 +123,7 @@ impl Canvas<'_> {
   }
 }
 
-fn clip_segment([a, b]: [Vector; 2], bounds: [Vector; 2]) -> Option<[Vector; 2]> {
+pub(super) fn clip_segment([a, b]: [Vector; 2], bounds: [Vector; 2]) -> Option<[Vector; 2]> {
   let mut low: f64 = 0.0;
   let mut high: f64 = 1.0;
   for i in 0..3 {

@@ -172,6 +172,7 @@ skips cells. Detailed masks or traces can reach their separate one-billion-work
 budgets. Reduce model sampling, or omit masks and disable source capture when
 unnecessary; lowering raster resolution does not reduce SVG contour complexity.
 
-Compile `examples/custom-geometry.typ` for four mixed models and matching field
-lines, also included on gallery pages 9--10. Shared source definitions live in
-`examples/electric-field/custom-models.typ`.
+Compile `examples/features/custom-geometry.typ` for four mixed models and
+matching field lines. It imports the view functions from the corresponding
+object files in `examples/electric/`, also included by the gallery. Shared
+source definitions live in `examples/electric/custom-models.typ`.

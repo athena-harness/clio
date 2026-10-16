@@ -1,5 +1,6 @@
 //! Orthographic spatial context, slice heatmaps, and full-vector field lines as SVG.
 
+mod curves;
 mod drawing;
 mod sources;
 mod tracing;
@@ -8,7 +9,7 @@ pub use tracing::{SpatialLine, SpatialTracing};
 
 use super::{field_lines::LineStyle, ElectricField, FieldOptions, Source};
 use crate::{
-  geometry::{dot, finite, sub, Vector},
+  geometry::{dot, finite, norm, sub, Vector},
   render::{
     color::{parse_color, ColorScale},
     heatmap::Grid,
@@ -68,8 +69,11 @@ pub struct Scene {
   pub camera: Camera,
   /// Colors in source order, cycling when fewer colors than sources are supplied.
   pub source_colors: Vec<String>,
-  /// Source edge and curve thickness in output pixels.
+  /// Source edge thickness in output pixels; also used when curve radius is zero.
   pub source_thickness: f64,
+  /// Display-only tube radius for line sources in world units; zero uses strokes.
+  #[serde(default = "default_curve_radius")]
+  pub curve_radius: f64,
   /// Point-charge radius in output pixels.
   pub point_size: f64,
   /// Optional plane or sampled heatmap at the request's observation grid.
@@ -161,12 +165,24 @@ impl Scene {
       self.source_thickness.is_finite() && self.source_thickness > 0.0 && self.source_thickness <= 32.0,
       "scene source-thickness must be positive and at most 32 output pixels",
     )?;
+    let diagonal = norm(sub(self.bounds[1], self.bounds[0]));
+    require(
+      self.curve_radius.is_finite()
+        && self.curve_radius >= 0.0
+        && diagonal.is_finite()
+        && self.curve_radius <= diagonal / 4.0,
+      "scene curve-radius must be nonnegative and at most one quarter of the scene-box diagonal",
+    )?;
     require(
       self.point_size.is_finite() && self.point_size > 0.0 && self.point_size <= 32.0,
       "scene point-size must be positive and at most 32 output pixels",
     )?;
     Ok(())
   }
+}
+
+fn default_curve_radius() -> f64 {
+  0.02
 }
 
 /// Integrates field lines in three dimensions and retains each endpoint's stop reason.

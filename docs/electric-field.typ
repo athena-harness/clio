@@ -16,22 +16,30 @@ and page layout.
 
 == Example gallery
 
-`examples/gallery.typ` includes twenty heatmap examples from
-`examples/electric-field/` and twenty matching field-line examples from
-`examples/electric-field-lines/`. Each example can also be compiled on its own:
+`examples/gallery.typ` includes twenty-two object examples from
+`examples/electric/`. Each object file contains its heatmap, matching field
+lines, and a spatial view. Each example can also be compiled on its own:
 
 ```sh
-typst compile --root . examples/electric-field/dipole.typ /tmp/clio-dipole.pdf
+typst compile --root . examples/electric/dipole.typ /tmp/clio-dipole.pdf
 ```
 
-The first eight gallery pages use the same ordering for both sets: heatmap pages
-1--4 correspond to field-line pages 5--8. `examples/electric-field/models.typ`
-owns source geometry, charge densities, quadrature counts, and observation
-frames shared by both sets, so changing a model updates both views.
+Each gallery page groups the views of one object. `examples/electric/models.typ`
+owns the baseline source geometry, densities, quadrature counts, and observation
+frames. Custom models and both spherical shells use the same paired
+presentation. Feature demonstrations live in `examples/features/`. See the
+Custom charge geometry chapter for parameter expressions and triangle meshes.
 
-Pages 9--10 add four custom-geometry models and their matching field-line views.
-See the Custom charge geometry chapter for parameter expressions and triangle
-meshes.
+Object modules export `heatmap()`, `field-lines()`, and `spatial()` functions.
+Import these functions to compose a selected view in another document. The
+complete page is deferred until layout, so importing an object does not render
+its unused page. Pass `--input show-3d=false` to omit spatial views from
+standalone examples and the gallery.
+
+Every spatial example includes a field-magnitude heatmap slice and a labeled
+colorbar. Magnitude views use the same color range as their planar counterpart.
+The parallel-disk and coplanar-disk planar heatmaps display signed components;
+their spatial slices instead display the full magnitude, as noted in each panel.
 
 The gallery covers an isolated charge, equal and unequal charge pairs, a dipole,
 square and axial quadrupoles, a finite rod, a long-wire approximation, opposite
@@ -48,11 +56,11 @@ typst compile --root . --input samples-x=240 --input samples-y=180 \
 ```
 
 Defaults are 160 by 120 pixels and integration detail 1. The detail multiplier
-scales the source sample counts in `examples/electric-field/common.typ`; each
-source's base count is shared in `examples/electric-field/models.typ`.
-Increasing both radial and angular counts by a factor of two quadruples surface
-quadrature work. Bounds and pixel aspect ratios in these examples preserve equal
-lengths along both axes.
+scales the source sample counts in `examples/electric/common.typ`; each source's
+base count is shared in `examples/electric/models.typ`. Increasing both radial
+and angular counts by a factor of two quadruples surface quadrature work. Bounds
+and pixel aspect ratios in these examples preserve equal lengths along both
+axes.
 
 The gallery uses relative units and a regularization length of 0.06. It shows
 prescribed charges rather than self-consistent charge redistribution on

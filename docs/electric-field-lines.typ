@@ -26,20 +26,21 @@ are referenced by the SVG.
 Build the plugin with `bash scripts/build-plugin.sh`. Compile the complete
 gallery with
 `typst compile --root . examples/gallery.typ /tmp/clio-gallery.pdf`, or compile
-an individual example from `examples/electric-field-lines/`.
+an individual example from `examples/electric/`.
 
 == Matching the heatmap gallery
 
-Sixteen baseline field-line scenes match the baseline heatmap scenes by
-filename. Gallery pages 5--8 repeat the order of heatmap pages 1--4. Shared
-definitions in `examples/electric-field/models.typ` keep source positions,
+Each object module in `examples/electric/` contains both its heatmap and its
+matching field-line view. The gallery places them together on the object's page.
+Shared definitions in `examples/electric/models.typ` keep source positions,
 charges, densities, quadrature counts, bounds, and observation planes identical.
-The SVG viewport is three times the heatmap resolution; changing this does not
-change the model.
+The baseline SVG viewport is three times the heatmap resolution; changing this
+does not change the model.
 
-Pages 9--10 add four custom models with matching heatmaps and field lines. These
-use the same raster resolution in both views; their shared sources and seeds
-live in `examples/electric-field/custom-models.typ`.
+Four custom models also pair heatmaps and field lines in their respective files.
+Their shared sources and seeds live in `examples/electric/custom-models.typ`.
+Import an object module and call its `field-lines()` function to display just
+that view.
 
 #table(
   columns: (1.2fr, 2.8fr),

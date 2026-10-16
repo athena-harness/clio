@@ -1,6 +1,6 @@
 //! Visual geometry from the same prepared cells used for source capture.
 
-use super::{drawing::Canvas, Request};
+use super::{curves, drawing::Canvas, Request};
 use crate::{
   electrostatics::{custom_geometry::Shape, ElectricField, Source},
   geometry::{add, cross, dot, mul, norm, sub, Plane, Vector},
@@ -14,6 +14,8 @@ type EdgeKey = [[u64; 3]; 2];
 
 pub(super) fn draw(canvas: &mut Canvas<'_>, request: &Request, field: &ElectricField) -> Result<(), Error> {
   let scene = &request.scene;
+  let mut line_sources: BTreeMap<[u8; 4], Vec<[Vector; 2]>> = BTreeMap::new();
+  let mut line_count = 0;
   let tolerance = norm(sub(scene.bounds[1], scene.bounds[0])) / 24.0;
   require(
     tolerance.is_finite() && tolerance > 0.0,
@@ -27,7 +29,13 @@ pub(super) fn draw(canvas: &mut Canvas<'_>, request: &Request, field: &ElectricF
     let mut triangles = Vec::new();
     match source {
       Source::Point(point) => canvas.point(point.position, color, scene.point_size)?,
-      Source::Segment(segment) => canvas.segment([segment.start, segment.end], color, scene.source_thickness, None)?,
+      Source::Segment(segment) => {
+        line_sources
+          .entry(color)
+          .or_default()
+          .push([segment.start, segment.end]);
+        line_count += 1;
+      }
       Source::Annulus(surface) => round(
         &mut triangles,
         surface.plane,
@@ -56,7 +64,10 @@ pub(super) fn draw(canvas: &mut Canvas<'_>, request: &Request, field: &ElectricF
           )?;
           for cell in geometry.cells() {
             match cell.shape {
-              Shape::Segment(points) => canvas.segment(points, color, scene.source_thickness, None)?,
+              Shape::Segment(points) => {
+                line_sources.entry(color).or_default().push(points);
+                line_count += 1;
+              }
               Shape::Triangle(points) => triangles.push(points),
               Shape::Tetrahedron([a, b, c, d]) => {
                 for face in [[a, b, c], [a, b, d], [a, c, d], [b, c, d]] {
@@ -80,6 +91,10 @@ pub(super) fn draw(canvas: &mut Canvas<'_>, request: &Request, field: &ElectricF
         }
       }
     }
+    require(
+      line_count <= 131_072,
+      "spatial line sources exceed 131072 segments; reduce curve samples",
+    )?;
     let mut edges: BTreeMap<EdgeKey, (u32, [Vector; 2])> = BTreeMap::new();
     for triangle in triangles {
       for i in 0..3 {
@@ -118,6 +133,9 @@ pub(super) fn draw(canvas: &mut Canvas<'_>, request: &Request, field: &ElectricF
         canvas.segment([point(i), point(i + 1)], edge_color, scene.source_thickness, None)?;
       }
     }
+  }
+  for (color, segments) in line_sources {
+    curves::draw(canvas, &segments, color, scene.curve_radius, scene.source_thickness)?;
   }
   Ok(())
 }
