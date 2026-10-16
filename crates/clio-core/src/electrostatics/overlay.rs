@@ -1,6 +1,8 @@
 //! Geometric source masks configured independently of electric-field evaluation.
 
-use super::Source;
+mod vector;
+
+use super::{ElectricField, Source};
 use crate::{
   geometry::{dot, norm, sub, Vector},
   render::color::parse_color,
@@ -58,11 +60,12 @@ impl PreparedStyle {
 
 pub(crate) struct PreparedOverlay<'a> {
   sources: &'a [Source],
+  field: &'a ElectricField,
   styles: Vec<Option<PreparedStyle>>,
 }
 
 impl<'a> PreparedOverlay<'a> {
-  pub fn new(sources: &'a [Source], overlay: &SourceOverlay) -> Result<Self, Error> {
+  pub fn new(sources: &'a [Source], field: &'a ElectricField, overlay: &SourceOverlay) -> Result<Self, Error> {
     let mut selected = vec![Some(&overlay.style); sources.len()];
     let mut assigned = vec![false; sources.len()];
     for replacement in &overlay.overrides {
@@ -78,14 +81,14 @@ impl<'a> PreparedOverlay<'a> {
       .into_iter()
       .map(|style| style.map(PreparedStyle::new).transpose())
       .collect::<Result<_, _>>()?;
-    Ok(Self { sources, styles })
+    Ok(Self { sources, field, styles })
   }
 
   pub fn pixel(&self, position: Vector) -> Option<[u8; 4]> {
     // Later sources are drawn on top when their visible masks overlap.
-    for (source, style) in self.sources.iter().zip(&self.styles).rev() {
+    for (index, (source, style)) in self.sources.iter().zip(&self.styles).enumerate().rev() {
       if let Some(style) = style {
-        if style.color[3] > 0 && distance(source, position) <= style.radius {
+        if style.color[3] > 0 && self.field.source_distance(index, source, position, false) <= style.radius {
           return Some(style.color);
         }
       }
@@ -94,7 +97,7 @@ impl<'a> PreparedOverlay<'a> {
   }
 }
 
-fn distance(source: &Source, position: Vector) -> f64 {
+pub(crate) fn distance(source: &Source, position: Vector) -> f64 {
   match source {
     Source::Point(point) => norm(sub(position, point.position)),
     Source::Segment(segment) => {
@@ -118,5 +121,7 @@ fn distance(source: &Source, position: Vector) -> f64 {
       let radial = dot(delta, surface.plane.horizontal).hypot(dot(delta, surface.plane.vertical));
       normal.hypot((surface.hole_radius - radial).max(0.0))
     }
+    // Custom models use the mesh cached in ElectricField, never their expression input.
+    Source::Parametric(_) | Source::TriangleMesh(_) => f64::INFINITY,
   }
 }

@@ -1,0 +1,645 @@
+//! Plane-based electric-field tracing and vector SVG rendering.
+
+use super::{
+  heatmap::{self, Quantity},
+  overlay::{PreparedOverlay, SourceOverlay},
+  ElectricField, FieldOptions, Source,
+};
+use crate::{
+  geometry::{dot, norm},
+  render::{
+    color::{parse_color, ColorScale},
+    heatmap::Grid,
+    svg::{self, hex},
+  },
+  require, Error,
+};
+use serde::{Deserialize, Serialize};
+use std::{f64::consts::TAU, fmt::Write};
+
+mod endpoints;
+pub use endpoints::EndpointStyle;
+
+type Point = [f64; 2];
+
+/// Why a branch stopped; reasons describe numerical termination, not electric charges.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Termination {
+  /// This endpoint is the seed of an untraced branch.
+  Seed,
+  /// The configured capture distance from charged geometry was reached.
+  Source,
+  /// The observation rectangle or spatial tracing box was reached.
+  Bounds,
+  /// An RK4 evaluation encountered a field magnitude below the tracing threshold.
+  WeakField,
+  /// An RK4 evaluation encountered an unregularized singularity.
+  Singularity,
+  /// The normalized RK4 step made negligible progress.
+  Stagnation,
+  /// The branch exhausted its configured step count.
+  StepLimit,
+}
+
+/// A local polyline ordered along the field, with a reason for each endpoint.
+#[derive(Clone, Debug, Serialize)]
+pub struct TracedLine {
+  /// Local observation-plane coordinates.
+  pub points: Vec<Point>,
+  /// Reason at the beginning of the field-oriented path.
+  pub start: Termination,
+  /// Reason at the end of the field-oriented path.
+  pub end: Termination,
+}
+
+struct Branch {
+  points: Vec<Point>,
+  termination: Termination,
+}
+
+enum Tangent {
+  Vector(Point),
+  Stop(Termination),
+}
+
+/// Seed generation in the observation plane's local coordinates.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum Seeds {
+  /// Explicit local coordinates.
+  Points {
+    /// Observation-plane coordinates.
+    points: Vec<Point>,
+  },
+  /// Equally spaced points on a local circle.
+  Circle {
+    /// Local center.
+    center: Point,
+    /// Positive radius in world-space length units.
+    radius: f64,
+    /// Number of seeds.
+    count: u32,
+    /// Initial angle in radians.
+    phase: f64,
+  },
+  /// Equally spaced points including both endpoints.
+  Segment {
+    /// First local endpoint.
+    start: Point,
+    /// Last local endpoint.
+    end: Point,
+    /// Number of seeds, at least two.
+    count: u32,
+  },
+}
+
+/// Branches traced from each seed; rendered arrows always follow the electric field.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Direction {
+  /// Along the field from the seed.
+  Forward,
+  /// Against the field from the seed, then reverse the rendered path.
+  Backward,
+  /// Trace both branches and join them at the seed.
+  Both,
+}
+
+/// Interpretation of the field in the observation plane.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Mode {
+  /// Require the field to remain tangent to the plane within tolerance.
+  Planar,
+  /// Trace the in-plane projection, which is not a three-dimensional field line.
+  Projected,
+}
+
+/// Numerical tracing settings independent of raster resolution and line styling.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Tracing {
+  /// Fixed RK4 arc-length step in world-space length units.
+  pub step: f64,
+  /// Maximum steps per branch.
+  pub max_steps: u32,
+  /// Stop when the in-plane field magnitude is at or below this value.
+  pub min_field: f64,
+  /// Stop within this distance of actual source geometry; zero disables this check.
+  pub source_radius: f64,
+  /// Forward, backward, or joined tracing.
+  pub direction: Direction,
+  /// True planar field lines or projected streamlines.
+  pub mode: Mode,
+  /// Maximum relative normal component allowed in planar mode.
+  pub plane_tolerance: f64,
+}
+
+impl Default for Tracing {
+  fn default() -> Self {
+    Self {
+      step: 0.02,
+      max_steps: 2000,
+      min_field: 1e-8,
+      source_radius: 0.08,
+      direction: Direction::Both,
+      mode: Mode::Planar,
+      plane_tolerance: 1e-6,
+    }
+  }
+}
+
+/// SVG stroke and arrow dimensions measured in output pixels.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct LineStyle {
+  /// Stroke and arrow color.
+  pub color: String,
+  /// Positive stroke width in output pixels.
+  pub width: f64,
+  /// Arrow spacing in output pixels; None disables arrowheads.
+  pub arrow_spacing: Option<f64>,
+  /// Arrowhead length in output pixels.
+  pub arrow_size: f64,
+}
+
+impl LineStyle {
+  pub(crate) fn validate(&self) -> Result<[u8; 4], Error> {
+    let style = self;
+    require(
+      style.width.is_finite() && style.width > 0.0 && style.width <= 64.0,
+      "line width must be positive and at most 64 output pixels",
+    )?;
+    require(
+      style.arrow_size.is_finite() && (0.0..=64.0).contains(&style.arrow_size),
+      "arrow-size must be between 0 and 64 output pixels",
+    )?;
+    if let Some(spacing) = style.arrow_spacing {
+      require(
+        spacing.is_finite() && spacing >= (2.0 * style.arrow_size).max(1.0),
+        "arrow-spacing must be finite and at least twice arrow-size or 1 pixel",
+      )?;
+    }
+    parse_color(&style.color)
+  }
+}
+
+/// Background independent of the field-line stroke and source masks.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum Background {
+  /// A solid or transparent fill.
+  Solid {
+    /// Fill color.
+    color: String,
+  },
+  /// Field-magnitude heatmap using the existing scalar color configuration.
+  Heatmap {
+    /// Field-magnitude color scale.
+    color: ColorScale,
+  },
+}
+
+/// Electric-field-line request consumed by the native and WASM rendering APIs.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Request {
+  /// Sources shared with the heatmap renderer.
+  pub sources: Vec<Source>,
+  /// Observation plane, bounds, and output dimensions.
+  pub grid: Grid,
+  /// Coulomb multiplier and regularization.
+  pub field: FieldOptions,
+  /// One or more seed generators.
+  pub seeds: Vec<Seeds>,
+  /// Integration and termination settings.
+  pub tracing: Tracing,
+  /// Vector stroke and arrow styling.
+  pub style: LineStyle,
+  /// Solid fill or field-magnitude heatmap.
+  pub background: Background,
+  /// Source masks drawn above field lines.
+  pub source_overlay: Option<SourceOverlay>,
+}
+
+/// Traces normalized electric-field directions with fixed-step RK4.
+///
+/// # Parameters
+/// * `request`: geometry, seed generators, and numerical tracing settings.
+///
+/// # Returns
+/// Local-coordinate polylines ordered along the electric field, including backward branches.
+/// Seed placement controls the displayed line density; it is not an automatic flux measure.
+///
+/// # Errors
+/// Rejects invalid settings, incompatible observation planes, numerical failures,
+/// or requests exceeding the source-evaluation and vertex limits.
+pub fn trace(request: &Request) -> Result<Vec<Vec<Point>>, Error> {
+  let field = ElectricField::new(&request.sources, request.field)?;
+  Ok(
+    trace_prepared(request, &field)?
+      .into_iter()
+      .map(|line| line.points)
+      .collect(),
+  )
+}
+
+/// Traces field-oriented paths while retaining the reasons their branches ended.
+///
+/// # Parameters
+/// * `request`: the same sources, seeds, and settings accepted by `trace`.
+///
+/// # Returns
+/// Paths with independent start and end reasons. Weak fields and stagnation do not
+/// establish an accurately located field null or a physical charge source.
+///
+/// # Errors
+/// Reports the same validation, planarity, and evaluation-budget failures as `trace`.
+pub fn trace_detailed(request: &Request) -> Result<Vec<TracedLine>, Error> {
+  let field = ElectricField::new(&request.sources, request.field)?;
+  trace_prepared(request, &field)
+}
+
+fn trace_prepared(request: &Request, field: &ElectricField) -> Result<Vec<TracedLine>, Error> {
+  request.grid.validate()?;
+  let options = request.tracing;
+  require(
+    options.step.is_finite() && options.step > 0.0,
+    "tracing step must be positive and finite",
+  )?;
+  require(
+    (1..=10_000).contains(&options.max_steps),
+    "max-steps must be between 1 and 10000",
+  )?;
+  require(
+    options.min_field.is_finite() && options.min_field >= 0.0,
+    "min-field must be nonnegative and finite",
+  )?;
+  require(
+    options.source_radius.is_finite() && options.source_radius >= 0.0,
+    "source-radius must be nonnegative and finite",
+  )?;
+  require(
+    options.source_radius == 0.0 || options.step <= options.source_radius,
+    "tracing step must not exceed a nonzero source-radius",
+  )?;
+  require(
+    options.plane_tolerance.is_finite() && (0.0..=1.0).contains(&options.plane_tolerance),
+    "plane-tolerance must be between 0 and 1",
+  )?;
+  let seeds = generate_seeds(&request.seeds)?;
+  require(
+    !seeds.is_empty() && seeds.len() <= 1024,
+    "provide between 1 and 1024 seeds",
+  )?;
+  let branches = if matches!(options.direction, Direction::Both) {
+    2
+  } else {
+    1
+  };
+  require(
+    seeds.len() as u64 * branches * (u64::from(options.max_steps) + 1) <= 4_194_304,
+    "request exceeds 4194304 possible trace vertices",
+  )?;
+  let mut budget = 1_000_000_000_u64;
+  let mut lines = Vec::with_capacity(seeds.len());
+  for seed in seeds {
+    require(
+      inside(seed, request.grid.bounds),
+      "seeds must be finite and inside observation bounds",
+    )?;
+    let mut backward = if !matches!(options.direction, Direction::Forward) {
+      branch(seed, -1.0, request, field, &mut budget)?
+    } else {
+      Branch {
+        points: vec![seed],
+        termination: Termination::Seed,
+      }
+    };
+    backward.points.reverse();
+    let mut end = Termination::Seed;
+    if !matches!(options.direction, Direction::Backward) {
+      let forward = branch(seed, 1.0, request, field, &mut budget)?;
+      end = forward.termination;
+      backward.points.extend(forward.points.into_iter().skip(1));
+    }
+    lines.push(TracedLine {
+      points: backward.points,
+      start: backward.termination,
+      end,
+    });
+  }
+  Ok(lines)
+}
+
+fn generate_seeds(groups: &[Seeds]) -> Result<Vec<Point>, Error> {
+  let mut result = Vec::new();
+  require(groups.len() <= 1024, "too many seed groups")?;
+  for group in groups {
+    match group {
+      Seeds::Points { points } => {
+        require(result.len() + points.len() <= 1024, "too many explicit seeds")?;
+        result.extend_from_slice(points);
+      }
+      Seeds::Circle {
+        center,
+        radius,
+        count,
+        phase,
+      } => {
+        require(
+          (1..=1024).contains(count) && radius.is_finite() && *radius > 0.0 && phase.is_finite(),
+          "seed circle requires a positive radius, finite phase, and 1 to 1024 points",
+        )?;
+        for i in 0..*count {
+          let (sin, cos) = (phase + TAU * f64::from(i) / f64::from(*count)).sin_cos();
+          result.push([center[0] + radius * cos, center[1] + radius * sin]);
+        }
+      }
+      Seeds::Segment { start, end, count } => {
+        require((2..=1024).contains(count), "seed segment requires 2 to 1024 points")?;
+        for i in 0..*count {
+          let t = f64::from(i) / f64::from(count - 1);
+          result.push(std::array::from_fn(|axis| (1.0 - t) * start[axis] + t * end[axis]));
+        }
+      }
+    }
+    require(result.len() <= 1024, "total seeds must not exceed 1024")?;
+  }
+  Ok(result)
+}
+
+fn inside(p: Point, bounds: [f64; 4]) -> bool {
+  p.iter().all(|v| v.is_finite()) && p[0] >= bounds[0] && p[0] <= bounds[1] && p[1] >= bounds[2] && p[1] <= bounds[3]
+}
+
+fn charge_budget(budget: &mut u64, count: usize) -> Result<(), Error> {
+  *budget = budget
+    .checked_sub(count as u64)
+    .ok_or_else(|| Error::Invalid("field-line evaluation budget exceeded".into()))?;
+  Ok(())
+}
+
+fn near_source(p: Point, request: &Request, field: &ElectricField, budget: &mut u64) -> Result<bool, Error> {
+  if request.tracing.source_radius == 0.0 {
+    return Ok(false);
+  }
+  charge_budget(budget, field.geometry_evaluation_count())?;
+  let world = request.grid.plane.position(p[0], p[1]);
+  Ok(
+    request
+      .sources
+      .iter()
+      .enumerate()
+      .any(|(index, source)| field.source_distance(index, source, world, true) <= request.tracing.source_radius),
+  )
+}
+
+fn tangent(p: Point, sign: f64, request: &Request, field: &ElectricField, budget: &mut u64) -> Result<Tangent, Error> {
+  charge_budget(budget, field.evaluation_count())?;
+  let plane = request.grid.plane;
+  let Some(vector) = field.at(plane.position(p[0], p[1]))? else {
+    return Ok(Tangent::Stop(Termination::Singularity));
+  };
+  let full = norm(vector);
+  let local = [dot(vector, plane.horizontal), dot(vector, plane.vertical)];
+  let length = local[0].hypot(local[1]);
+  if !full.is_finite() || !length.is_finite() {
+    return Err(Error::Numerical("field-line magnitude overflow"));
+  }
+  if full > request.tracing.min_field && matches!(request.tracing.mode, Mode::Planar) {
+    require(
+      dot(vector, plane.normal()).abs() / full <= request.tracing.plane_tolerance,
+      "field leaves the observation plane; choose a symmetry plane or explicitly enable projected mode",
+    )?;
+  }
+  if length <= request.tracing.min_field {
+    return Ok(Tangent::Stop(Termination::WeakField));
+  }
+  Ok(Tangent::Vector(local.map(|v| sign * v / length)))
+}
+
+fn shifted(p: Point, d: Point, scale: f64) -> Point {
+  std::array::from_fn(|i| p[i] + d[i] * scale)
+}
+
+fn branch(seed: Point, sign: f64, request: &Request, field: &ElectricField, budget: &mut u64) -> Result<Branch, Error> {
+  let mut result = vec![seed];
+  let mut p = seed;
+  let h = request.tracing.step;
+  macro_rules! direction {
+    ($position:expr) => {
+      match tangent($position, sign, request, field, budget)? {
+        Tangent::Vector(vector) => vector,
+        Tangent::Stop(termination) => {
+          return Ok(Branch {
+            points: result,
+            termination,
+          })
+        }
+      }
+    };
+  }
+  for _ in 0..request.tracing.max_steps {
+    if near_source(p, request, field, budget)? {
+      return Ok(Branch {
+        points: result,
+        termination: Termination::Source,
+      });
+    }
+    let k1 = direction!(p);
+    let k2 = direction!(shifted(p, k1, h / 2.0));
+    let k3 = direction!(shifted(p, k2, h / 2.0));
+    let k4 = direction!(shifted(p, k3, h));
+    let next = std::array::from_fn(|i| p[i] + h * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]) / 6.0);
+    require(
+      next.iter().all(|v| v.is_finite()),
+      "field-line coordinates must remain finite",
+    )?;
+    if (next[0] - p[0]).hypot(next[1] - p[1]) < h * 1e-6 {
+      return Ok(Branch {
+        points: result,
+        termination: Termination::Stagnation,
+      });
+    }
+    if !inside(next, request.grid.bounds) {
+      let bounds = request.grid.bounds;
+      let mut t = 1.0_f64;
+      for i in 0..2 {
+        if next[i] < bounds[2 * i] {
+          t = t.min((bounds[2 * i] - p[i]) / (next[i] - p[i]));
+        }
+        if next[i] > bounds[2 * i + 1] {
+          t = t.min((bounds[2 * i + 1] - p[i]) / (next[i] - p[i]));
+        }
+      }
+      result.push(std::array::from_fn(|i| p[i] + t * (next[i] - p[i])));
+      return Ok(Branch {
+        points: result,
+        termination: Termination::Bounds,
+      });
+    }
+    // Check the midpoint too, so a short crossing cannot skip a thin charged surface.
+    let midpoint = std::array::from_fn(|i| (p[i] + next[i]) / 2.0);
+    if near_source(midpoint, request, field, budget)? {
+      result.push(midpoint);
+      return Ok(Branch {
+        points: result,
+        termination: Termination::Source,
+      });
+    }
+    result.push(next);
+    p = next;
+  }
+  Ok(Branch {
+    points: result,
+    termination: Termination::StepLimit,
+  })
+}
+
+/// Computes field lines and renders them as self-contained SVG bytes.
+///
+/// # Parameters
+/// * `request`: sources, seed generators, tracing controls, background, and styling.
+///
+/// # Returns
+/// Vector strokes, arrowheads, and source masks, with an optional embedded heatmap.
+/// All data is generated in memory; external resources are not referenced.
+///
+/// # Errors
+/// Reports tracing, configuration, numerical, and image encoding errors.
+pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
+  render_impl(request, None)
+}
+
+/// Adds optional numerical-termination markers to a self-contained field-line SVG.
+///
+/// # Parameters
+/// * `request`: the ordinary field-line rendering request.
+/// * `endpoints`: marker styling for non-source, non-boundary trace terminations.
+///
+/// # Returns
+/// SVG bytes with field lines, source masks, and deduplicated diagnostic markers.
+/// Markers identify numerical outcomes; they do not certify physical nulls.
+///
+/// # Errors
+/// Reports tracing failures, invalid styles, or rendering errors.
+pub fn render_annotated(request: &Request, endpoints: &EndpointStyle) -> Result<Vec<u8>, Error> {
+  endpoints.validate()?;
+  render_impl(request, Some(endpoints))
+}
+
+fn render_impl(request: &Request, endpoints: Option<&EndpointStyle>) -> Result<Vec<u8>, Error> {
+  request.grid.validate()?;
+  let style = &request.style;
+  let rgba = style.validate()?;
+  let field = ElectricField::new(&request.sources, request.field)?;
+  let overlay = request
+    .source_overlay
+    .as_ref()
+    .map(|o| PreparedOverlay::new(&request.sources, &field, o))
+    .transpose()?;
+  let lines = trace_prepared(request, &field)?;
+  let [width, height] = request.grid.resolution;
+  let mut svg = svg::begin(request.grid.resolution);
+  match &request.background {
+    Background::Solid { color } => {
+      let color = parse_color(color)?;
+      write!(
+        svg,
+        "<rect width=\"100%\" height=\"100%\" fill=\"{}\" fill-opacity=\"{}\"/>",
+        hex(color),
+        f64::from(color[3]) / 255.0
+      )
+      .map_err(|_| Error::Numerical("SVG formatting failed"))?;
+    }
+    Background::Heatmap { color } => {
+      let png = heatmap::render(&heatmap::Request {
+        sources: request.sources.clone(),
+        grid: request.grid.clone(),
+        field: request.field,
+        quantity: Quantity::Magnitude,
+        color: color.clone(),
+        singularity_color: "#00000000".into(),
+        source_overlay: None,
+      })?;
+      svg::embed_png(&mut svg, &png, request.grid.resolution);
+    }
+  }
+  let [xmin, xmax, ymin, ymax] = request.grid.bounds;
+  let pixel = |p: Point| {
+    [
+      (p[0] - xmin) / (xmax - xmin) * f64::from(width),
+      (ymax - p[1]) / (ymax - ymin) * f64::from(height),
+    ]
+  };
+  for line in &lines {
+    if line.points.len() < 2 {
+      continue;
+    }
+    let pixels: Vec<_> = line.points.iter().copied().map(pixel).collect();
+    write!(
+      svg,
+      "<path data-start-termination=\"{}\" data-end-termination=\"{}\" d=\"",
+      line.start.name(),
+      line.end.name()
+    )
+    .map_err(|_| Error::Numerical("SVG formatting failed"))?;
+    for (i, p) in pixels.iter().enumerate() {
+      write!(svg, "{} {:.5} {:.5} ", if i == 0 { "M" } else { "L" }, p[0], p[1])
+        .map_err(|_| Error::Numerical("SVG formatting failed"))?;
+    }
+    write!(svg,"\" fill=\"none\" stroke=\"{}\" stroke-opacity=\"{}\" stroke-width=\"{}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+      hex(rgba),f64::from(rgba[3])/255.0,style.width).map_err(|_| Error::Numerical("SVG formatting failed"))?;
+    draw_arrows(&mut svg, &pixels, style, rgba)?;
+  }
+  if let Some(overlay) = overlay {
+    overlay.write_svg(&mut svg, &request.grid)?;
+  }
+  if let Some(style) = endpoints {
+    endpoints::draw(&mut svg, &lines, &pixel, style)?;
+  }
+  Ok(svg::finish(svg))
+}
+
+fn draw_arrows(svg: &mut String, points: &[Point], style: &LineStyle, color: [u8; 4]) -> Result<(), Error> {
+  let Some(spacing) = style.arrow_spacing.filter(|_| style.arrow_size > 0.0) else {
+    return Ok(());
+  };
+  let mut travelled = 0.0;
+  let mut target = spacing / 2.0;
+  for pair in points.windows(2) {
+    let a = pair[0];
+    let b = pair[1];
+    let length = (b[0] - a[0]).hypot(b[1] - a[1]);
+    if length == 0.0 {
+      continue;
+    }
+    let unit = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+    while target <= travelled + length {
+      let t = (target - travelled) / length;
+      let tip = shifted(a, unit, t * length);
+      let base = shifted(tip, unit, -style.arrow_size);
+      let normal = [-unit[1], unit[0]];
+      let left = shifted(base, normal, style.arrow_size * 0.45);
+      let right = shifted(base, normal, -style.arrow_size * 0.45);
+      write!(
+        svg,
+        "<polygon points=\"{:.5},{:.5} {:.5},{:.5} {:.5},{:.5}\" fill=\"{}\" fill-opacity=\"{}\"/>",
+        tip[0],
+        tip[1],
+        left[0],
+        left[1],
+        right[0],
+        right[1],
+        hex(color),
+        f64::from(color[3]) / 255.0
+      )
+      .map_err(|_| Error::Numerical("SVG formatting failed"))?;
+      target += spacing;
+    }
+    travelled += length;
+  }
+  Ok(())
+}

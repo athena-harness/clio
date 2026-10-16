@@ -1,0 +1,68 @@
+name: Feature request
+description: Propose a mathematical or physical diagram, configuration option, or workflow improvement.
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What diagram or workflow is difficult to express with the current API?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the feature and expected behavior. A sketch of the desired diagram or Typst call is helpful.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Mathematical or physical models and algorithms
+        - Sampling, numerical integration, and solvers
+        - Geometry, data, and expressions
+        - 2D and 3D diagram rendering
+        - Color mapping, styling, and annotations
+        - Typst API and composition
+        - WASM plugin interface
+        - Examples and documentation
+        - Developer tooling and CI
+    validations:
+      required: true
+  - type: input
+    id: domain
+    attributes:
+      label: Mathematical or physical topic
+      description: Name the relevant topic or branch. Proposals for new domains are welcome.
+      placeholder: Mechanics, optics, thermodynamics, electromagnetism, geometry, algebra, probability, or another topic.
+  - type: textarea
+    id: example
+    attributes:
+      label: Example use case
+      description: Show the model, inputs, intended output, or sample Typst API. Explain which controls users need and which can use defaults.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What observable results would make this feature complete?
+      placeholder: |
+        - The model can be defined through the Typst API.
+        - The diagram can be composed with Typst equations, labels, and layout.
+        - Accuracy or sampling controls, where applicable, are independent of display styling.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe an existing Clio configuration, custom geometry, or other approach you tried and its limitations.
+  - type: textarea
+    id: references
+    attributes:
+      label: References or sketches
+      description: Optional equations, diagrams, papers, or reference implementations that explain the intended behavior.

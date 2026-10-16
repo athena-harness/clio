@@ -10,3 +10,4 @@ serde.workspace = true
 png.workspace = true
 palette.workspace = true
 thiserror.workspace = true
+base64.workspace = true

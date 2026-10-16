@@ -2,6 +2,7 @@
 //! This crate is independent of Typst and the WASM plugin protocol.
 
 pub mod electrostatics;
+pub mod expression;
 pub mod geometry;
 pub mod render;
 

@@ -1,5 +1,5 @@
 //! Byte-oriented Typst plugin boundary for Clio.
-//! JSON requests enter; PNG bytes leave. No file or system access is used.
+//! JSON requests enter; self-contained SVG bytes leave. No file or system access is used.
 
 use serde::de::DeserializeOwned;
 
@@ -13,19 +13,19 @@ fn decode<T: DeserializeOwned>(input: &[u8]) -> Result<T, String> {
   serde_json::from_slice(input).map_err(|error| format!("invalid JSON request: {error}"))
 }
 
-/// Renders a JSON electric-field request into PNG bytes.
+/// Renders a JSON electric-field request into self-contained SVG bytes.
 ///
 /// # Parameters
 /// * `input`: JSON encoding of `clio_core::electrostatics::heatmap::Request`.
 ///
 /// # Returns
-/// In-memory PNG bytes accepted by Typst's `image` function.
+/// SVG bytes containing the scalar raster and optional vector source masks.
 ///
 /// # Errors
 /// Reports decoding, validation, numerical, and encoding errors to Typst.
 #[cfg_attr(target_arch = "wasm32", wasm_minimal_protocol::wasm_func)]
 pub fn render_electric_field(input: &[u8]) -> Result<Vec<u8>, String> {
-  clio_core::electrostatics::heatmap::render(&decode(input)?).map_err(|error| error.to_string())
+  clio_core::electrostatics::heatmap::render_svg(&decode(input)?).map_err(|error| error.to_string())
 }
 
 /// Renders a JSON colorbar request using the heatmap's shared color mapping.
@@ -34,11 +34,65 @@ pub fn render_electric_field(input: &[u8]) -> Result<Vec<u8>, String> {
 /// * `input`: JSON encoding of `clio_core::render::heatmap::Colorbar`.
 ///
 /// # Returns
-/// PNG bytes without labels or other document presentation.
+/// SVG gradient bytes without labels or other document presentation.
 ///
 /// # Errors
 /// Reports decoding, color validation, and encoding errors to Typst.
 #[cfg_attr(target_arch = "wasm32", wasm_minimal_protocol::wasm_func)]
 pub fn render_colorbar(input: &[u8]) -> Result<Vec<u8>, String> {
-  clio_core::render::heatmap::render_colorbar(&decode(input)?).map_err(|error| error.to_string())
+  clio_core::render::heatmap::render_colorbar_svg(&decode(input)?).map_err(|error| error.to_string())
+}
+
+/// Renders a JSON electric-field-line request into self-contained SVG bytes.
+///
+/// # Parameters
+/// * `input`: JSON encoding of `clio_core::electrostatics::field_lines::Request`.
+///
+/// # Returns
+/// SVG bytes containing vector lines, arrows, source masks, and an optional scalar raster.
+///
+/// # Errors
+/// Reports decoding, plane compatibility, tracing, and rendering errors to Typst.
+#[cfg_attr(target_arch = "wasm32", wasm_minimal_protocol::wasm_func)]
+pub fn render_electric_field_lines(input: &[u8]) -> Result<Vec<u8>, String> {
+  clio_core::electrostatics::field_lines::render(&decode(input)?).map_err(|error| error.to_string())
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AnnotatedLines {
+  diagram: clio_core::electrostatics::field_lines::Request,
+  endpoints: clio_core::electrostatics::field_lines::EndpointStyle,
+}
+
+/// Renders field lines with explicit markers for numerical trace termination.
+///
+/// # Parameters
+/// * `input`: JSON containing a field-line `diagram` and `endpoints` styling.
+///
+/// # Returns
+/// Self-contained SVG bytes with trace reasons and optional diagnostic markers.
+///
+/// # Errors
+/// Reports invalid requests, tracing failures, and marker styling errors.
+#[cfg_attr(target_arch = "wasm32", wasm_minimal_protocol::wasm_func)]
+pub fn render_electric_field_lines_annotated(input: &[u8]) -> Result<Vec<u8>, String> {
+  let request: AnnotatedLines = decode(input)?;
+  clio_core::electrostatics::field_lines::render_annotated(&request.diagram, &request.endpoints)
+    .map_err(|error| error.to_string())
+}
+
+/// Renders spatial source geometry, an observation slice, and optional full-vector field lines.
+///
+/// # Parameters
+/// * `input`: JSON encoding of `clio_core::electrostatics::scene::Request`.
+///
+/// # Returns
+/// Self-contained SVG bytes with an orthographic projection of the spatial scene.
+///
+/// # Errors
+/// Reports decoding, geometry, camera, tracing, and rendering-budget failures.
+#[cfg_attr(target_arch = "wasm32", wasm_minimal_protocol::wasm_func)]
+pub fn render_electric_field_scene(input: &[u8]) -> Result<Vec<u8>, String> {
+  clio_core::electrostatics::scene::render(&decode(input)?).map_err(|error| error.to_string())
 }

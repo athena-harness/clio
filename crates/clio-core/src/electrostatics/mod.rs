@@ -1,15 +1,19 @@
-//! Coulomb superposition of discrete and uniform continuous sources.
+//! Coulomb superposition of discrete, built-in, and user-defined continuous sources.
 
 pub mod continuous_charge;
+pub mod custom_geometry;
+pub mod field_lines;
 pub mod heatmap;
 pub mod overlay;
 pub mod point_charges;
+pub mod scene;
 
 use crate::{
   geometry::{dot, finite, mul, sub, Plane, Vector},
   require, Error,
 };
 use continuous_charge::{Annulus, PlaneWithHole, Segment};
+use custom_geometry::{Geometry, Parametric, TriangleMesh};
 use point_charges::PointCharge;
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +29,10 @@ pub enum Source {
   Annulus(Annulus),
   /// An infinite uniform plane integrated outside a circular hole.
   PlaneWithHole(PlaneWithHole),
+  /// A user-defined curve, surface, or volume with parameter-dependent density.
+  Parametric(Parametric),
+  /// An indexed charged surface with uniform or per-face density.
+  TriangleMesh(TriangleMesh),
 }
 
 /// Physical scaling and regularization, independent of the color scale.
@@ -51,6 +59,9 @@ pub struct ElectricField {
   nodes: Vec<PointCharge>,
   planes: Vec<(Plane, f64, f64)>,
   options: FieldOptions,
+  geometry: Vec<Option<Geometry>>,
+  active: Vec<bool>,
+  geometry_cost: usize,
 }
 
 impl ElectricField {
@@ -80,7 +91,12 @@ impl ElectricField {
     )?;
     let mut nodes = Vec::new();
     let mut planes = Vec::new();
+    let mut geometry = Vec::with_capacity(sources.len());
+    let mut active = Vec::with_capacity(sources.len());
+    let mut preparation_budget = 64_000_000_u64;
     for source in sources {
+      let first_node = nodes.len();
+      let mut cells = None;
       match source {
         Source::Point(point) => {
           point.validate()?;
@@ -92,16 +108,62 @@ impl ElectricField {
           nodes.extend(source.nodes()?);
           planes.push((source.plane, source.density, source.hole_radius));
         }
+        Source::Parametric(source) => {
+          let prepared = source.prepare(&mut preparation_budget)?;
+          nodes.extend(prepared.nodes);
+          cells = Some(Geometry::new(prepared.cells));
+        }
+        Source::TriangleMesh(source) => {
+          let prepared = source.prepare()?;
+          nodes.extend(prepared.nodes);
+          cells = Some(Geometry::new(prepared.cells));
+        }
       }
+      active.push(nodes[first_node..].iter().any(|node| node.charge != 0.0));
+      geometry.push(cells);
       require(nodes.len() <= 262_144, "total quadrature nodes must not exceed 262144")?;
     }
     nodes.retain(|node| node.charge != 0.0);
-    Ok(Self { nodes, planes, options })
+    let geometry_cost = geometry
+      .iter()
+      .map(|cells| cells.as_ref().map_or(1, Geometry::cost))
+      .sum();
+    Ok(Self {
+      nodes,
+      planes,
+      options,
+      geometry,
+      active,
+      geometry_cost,
+    })
   }
 
   /// Returns the number of source evaluations per observation point.
   pub fn evaluation_count(&self) -> usize {
     self.nodes.len() + self.planes.len()
+  }
+
+  pub(crate) fn geometry_evaluation_count(&self) -> usize {
+    self.geometry_cost
+  }
+
+  pub(crate) fn custom_geometry(&self, index: usize) -> Option<&Geometry> {
+    self.geometry[index].as_ref()
+  }
+
+  pub(crate) fn source_geometry_cost(&self, index: usize) -> usize {
+    self.geometry[index].as_ref().map_or(1, Geometry::cost)
+  }
+
+  pub(crate) fn source_distance(&self, index: usize, source: &Source, position: Vector, charged_only: bool) -> f64 {
+    if charged_only && !self.active[index] {
+      return f64::INFINITY;
+    }
+    if let Some(geometry) = &self.geometry[index] {
+      geometry.distance(position, charged_only)
+    } else {
+      overlay::distance(source, position)
+    }
   }
 
   /// Evaluates the total field at one world-space position.

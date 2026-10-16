@@ -7,6 +7,7 @@ use crate::{
   render::{
     color::{ColorScale, PreparedScale},
     heatmap::{self, Grid},
+    svg,
   },
   require, Error,
 };
@@ -58,20 +59,60 @@ pub struct Request {
 /// Rejects invalid parameters, more than one billion source/pixel evaluations,
 /// numerical overflow, or PNG encoding failures.
 pub fn render(request: &Request) -> Result<Vec<u8>, Error> {
+  let field = ElectricField::new(&request.sources, request.field)?;
+  let overlay = request
+    .source_overlay
+    .as_ref()
+    .map(|style| PreparedOverlay::new(&request.sources, &field, style))
+    .transpose()?;
+  render_raster(request, &field, overlay.as_ref())
+}
+
+/// Renders a scalar raster and independent vector source masks as self-contained SVG.
+///
+/// # Parameters
+/// * `request`: sources, field sampling, color mapping, and optional source styles.
+///
+/// # Returns
+/// SVG bytes with an embedded PNG field layer and resolution-independent source geometry.
+///
+/// # Errors
+/// Reports invalid field parameters, raster or vector geometry budgets, and encoding failures.
+pub fn render_svg(request: &Request) -> Result<Vec<u8>, Error> {
+  let field = ElectricField::new(&request.sources, request.field)?;
+  let overlay = request
+    .source_overlay
+    .as_ref()
+    .map(|style| PreparedOverlay::new(&request.sources, &field, style))
+    .transpose()?;
+  let png = render_raster(request, &field, None)?;
+  let mut svg = svg::begin(request.grid.resolution);
+  svg::embed_png(&mut svg, &png, request.grid.resolution);
+  if let Some(overlay) = overlay {
+    overlay.write_svg(&mut svg, &request.grid)?;
+  }
+  Ok(svg::finish(svg))
+}
+
+fn render_raster(
+  request: &Request,
+  field: &ElectricField,
+  overlay: Option<&PreparedOverlay<'_>>,
+) -> Result<Vec<u8>, Error> {
   let pixels = request.grid.validate()?;
   if let Quantity::Component { direction } = request.quantity {
     unit(direction)?;
   }
   let scale = PreparedScale::new(&request.color)?;
   let missing = heatmap::missing_color(&request.singularity_color)?;
-  let field = ElectricField::new(&request.sources, request.field)?;
-  let overlay = request
-    .source_overlay
-    .as_ref()
-    .map(|style| PreparedOverlay::new(&request.sources, style))
-    .transpose()?;
   require(
-    (pixels as u64) * ((field.evaluation_count() + if overlay.is_some() { request.sources.len() } else { 0 }) as u64)
+    (pixels as u64)
+      * ((field.evaluation_count()
+        + if overlay.is_some() {
+          field.geometry_evaluation_count()
+        } else {
+          0
+        }) as u64)
       <= 1_000_000_000,
     "request exceeds one billion source/pixel evaluations; reduce resolution or integration samples",
   )?;

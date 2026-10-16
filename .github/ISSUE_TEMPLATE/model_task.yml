@@ -1,0 +1,73 @@
+name: Mathematical or physical model task
+description: Plan a mathematical or physical model, algorithm, or computational geometry capability for the Rust backend.
+title: "engine: "
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Backend area
+      options:
+        - Mathematical or physical modeling
+        - Numerical methods and solvers
+        - Geometry and discretization
+        - Expressions, functions, and transformations
+        - Data analysis and statistics
+        - Sampling and diagram generation
+        - Spatial projection and rendering
+        - Shared core or WASM protocol
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Name the mathematical or physical branch and describe the model or algorithm, supported inputs, and intended diagrams. Both existing and new domains are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: assumptions
+    attributes:
+      label: Equations and assumptions
+      description: State the mathematical definitions or governing equations, domain, coordinate conventions, units where applicable, and assumptions. Include initial or boundary conditions for models that require them.
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References and expected results
+      description: Give an analytic solution, a derivation, a reproducible reference dataset, or a reference implementation. Links are optional when the expected result can be stated directly.
+      placeholder: |
+        - Reference case:
+        - Expected symmetry or limiting behavior:
+        - Expected values and units:
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: Proposed API and data flow
+      description: Sketch the Typst inputs, serialized parameters, Rust types, output, and error behavior. Explain how built-in helpers and user-defined models or data can share the implementation where applicable.
+  - type: textarea
+    id: accuracy
+    attributes:
+      label: Accuracy and performance
+      description: Describe accuracy guarantees or approximation limits and computational cost. For numerical methods, include relevant sampling controls, convergence expectations, tolerances, and handling of singularities. Separate computational accuracy from display styling.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: Describe analytic comparisons, symmetry checks, refinement studies, invalid inputs, or visual examples that would demonstrate the implementation works.
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Implementation considerations
+      description: Select the considerations addressed by this proposal; explain exceptions in the scope above.
+      options:
+        - label: Computation belongs in Rust; Typst handles equations, annotations, and layout.
+        - label: The WASM interface exchanges bytes without direct filesystem access.
+        - label: Model parameters and computational accuracy controls are independent of display styling.
+        - label: Invalid inputs produce errors with enough context to diagnose the problem.

@@ -2,6 +2,7 @@
 
 pub mod color;
 pub mod heatmap;
+pub(crate) mod svg;
 
 use crate::{require, Error};
 

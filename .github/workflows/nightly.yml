@@ -1,0 +1,161 @@
+name: Nightly documentation
+
+on:
+  schedule:
+    # 00:23 UTC / 08:23 Asia/Shanghai, on the default branch.
+    - cron: '23 0 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Build and publish even when relevant files have not changed
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-documentation
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changes:
+    name: Check for changes since the last nightly
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      previous_tag: ${{ steps.check.outputs.previous_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Compare rendering inputs with the last published nightly
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FORCE: ${{ inputs.force || false }}
+        run: |
+          set -euo pipefail
+          previous_tag="$(gh api --paginate --slurp \
+            "repos/$GH_REPO/releases?per_page=100" \
+            --jq '[.[][] | select(.draft == false and .prerelease == true
+              and (.tag_name | startswith("nightly-")))]
+              | sort_by(.published_at) | last | .tag_name // empty')"
+          echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
+
+          changed=true
+          if [[ "$FORCE" != true && -n "$previous_tag" ]]; then
+            if git rev-parse --verify "refs/tags/$previous_tag^{commit}" > /dev/null 2>&1; then
+              git diff --name-only "refs/tags/$previous_tag" HEAD -- \
+                crates/ typst/ lib.typ typst.toml Cargo.toml Cargo.lock \
+                rust-toolchain rust-toolchain.toml .cargo/ scripts/ docs/ examples/ \
+                .github/workflows/nightly.yml > "$RUNNER_TEMP/nightly-changes.txt"
+              if [[ ! -s "$RUNNER_TEMP/nightly-changes.txt" ]]; then
+                changed=false
+              fi
+            fi
+          fi
+
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          if [[ "$changed" == true ]]; then
+            echo '### Rendering inputs changed, or a build was forced. Building a nightly.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### No rendering input changes since $previous_tag. Build and release skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  build:
+    name: Compile manual and gallery
+    needs: changes
+    if: needs.changes.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: '0.15.1'
+
+      - name: Install manual code font
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y fonts-cascadia-code
+
+      - name: Build WASM plugin
+        run: bash scripts/build-plugin.sh
+
+      - name: Compile PDFs
+        run: |
+          mkdir -p dist
+          typst compile --root . docs/manual.typ dist/manual.pdf
+          typst compile --root . examples/gallery.typ dist/gallery.pdf
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nightly-documentation
+          path: |
+            dist/manual.pdf
+            dist/gallery.pdf
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish nightly PDFs
+    needs: [changes, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nightly-documentation
+          path: dist
+
+      - name: Create and publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PREVIOUS_TAG: ${{ needs.changes.outputs.previous_tag }}
+        run: |
+          set -euo pipefail
+          release_date="$(date -u +%Y-%m-%d)"
+          tag="nightly-$release_date-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          repository_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          notes="$RUNNER_TEMP/nightly-notes.md"
+          {
+            printf 'Automatically compiled documentation for commit [%s](%s/commit/%s).\n\n' \
+              "$GITHUB_SHA" "$repository_url" "$GITHUB_SHA"
+            printf '%s\n' '- `manual.pdf`: user guide and API reference.' \
+              '- `gallery.pdf`: electric field examples.'
+            printf '\n[Workflow run](%s/actions/runs/%s)\n' "$repository_url" "$GITHUB_RUN_ID"
+            if [[ -n "$PREVIOUS_TAG" ]]; then
+              printf '\n[Changes since the previous nightly](%s/compare/%s...%s)\n' \
+                "$repository_url" "$PREVIOUS_TAG" "$GITHUB_SHA"
+            fi
+          } > "$notes"
+
+          # Publish only after both assets have been uploaded successfully.
+          gh release create "$tag" dist/manual.pdf dist/gallery.pdf \
+            --target "$GITHUB_SHA" --title "Nightly $release_date" \
+            --notes-file "$notes" --prerelease --latest=false --draft
+          gh release edit "$tag" --draft=false
+          printf '### Published [%s](%s/releases/tag/%s)\n' \
+            "$tag" "$repository_url" "$tag" >> "$GITHUB_STEP_SUMMARY"

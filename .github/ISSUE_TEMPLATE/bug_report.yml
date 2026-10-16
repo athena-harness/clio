@@ -1,0 +1,100 @@
+name: Bug report
+description: Report a reproducible problem with Clio computation, rendering, or Typst integration.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Include a minimal example and the parameters needed to reproduce the problem.
+        For unexpected mathematical or physical results, include the model, conventions, and expected reference behavior.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+      placeholder: The rendered diagram disagrees with the supplied model or expected reference result.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Mathematical or physical models and algorithms
+        - Sampling, numerical integration, and solvers
+        - Geometry, data, and expressions
+        - 2D and 3D diagram rendering
+        - Color mapping, styling, and annotations
+        - Typst API and layout
+        - WASM plugin interface
+        - Examples and documentation
+        - CI and build tooling
+        - Unknown
+    validations:
+      required: true
+  - type: input
+    id: domain
+    attributes:
+      label: Mathematical or physical topic
+      description: Name the relevant topic or branch, if applicable.
+      placeholder: Electromagnetism, mechanics, optics, geometry, probability, or another topic.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include a complete Typst snippet or Rust example, input parameters, and exact build or compile commands. Attach any required files.
+      placeholder: |
+        1. Build the plugin with `bash scripts/build-plugin.sh`.
+        2. Compile the attached example with `typst compile --root . example.typ`.
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe the expected result. For numerical issues, include an analytic solution, symmetry argument, reference data, or comparison and its units when available.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the error message, numerical output, or rendered result. Screenshots, SVGs, and PDFs are useful for visual issues.
+    validations:
+      required: true
+  - type: textarea
+    id: numerical_settings
+    attributes:
+      label: Numerical and rendering settings
+      description: For computation or rendering issues, include relevant values or a configuration snippet. State whether defaults were used; omit this section if unrelated.
+      placeholder: |
+        - Model, geometry, or input data:
+        - Units, coordinates, and conventions:
+        - Model parameters and initial or boundary conditions:
+        - Sampling, discretization, solver settings, and tolerances:
+        - Plot domain, resolution, and value range:
+        - Projection, camera, styling, and overlays:
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      description: Include the commit SHA or release tag and whether the WASM plugin was rebuilt from that revision.
+      placeholder: Commit abcdef0; plugin rebuilt from the same revision.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include relevant tools and versions. If an editor preview differs from CLI output, identify both.
+      value: |
+        - OS:
+        - Rust (`rustc --version`):
+        - Typst (`typst --version`):
+        - Editor and Tinymist version, if applicable:
+        - Fonts, if relevant:
+    validations:
+      required: true

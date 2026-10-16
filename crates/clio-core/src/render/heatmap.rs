@@ -216,3 +216,50 @@ pub fn render_colorbar(request: &Colorbar) -> Result<Vec<u8>, Error> {
 pub(crate) fn missing_color(text: &str) -> Result<[u8; 4], Error> {
   parse_color(text)
 }
+
+/// Renders a vector gradient sampled in the heatmap's transformed color coordinate.
+///
+/// # Parameters
+/// * `request`: color scale, SVG viewport dimensions, and direction of increasing values.
+///
+/// # Returns
+/// Self-contained SVG bytes; Oklab interpolation is approximated by up to 1024 gradient stops.
+///
+/// # Errors
+/// Rejects invalid color scales, resolutions, or SVG formatting failures.
+pub fn render_colorbar_svg(request: &Colorbar) -> Result<Vec<u8>, Error> {
+  use super::svg;
+  use std::fmt::Write;
+
+  pixel_count(request.resolution)?;
+  let scale = PreparedScale::new(&request.color)?;
+  let mut document = svg::begin(request.resolution);
+  let (direction, count) = match request.orientation {
+    Orientation::Horizontal => ("x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\"", request.resolution[0]),
+    Orientation::Vertical => ("x1=\"0%\" y1=\"100%\" x2=\"0%\" y2=\"0%\"", request.resolution[1]),
+  };
+  let stops = count.clamp(2, 1024);
+  write!(
+    document,
+    "<defs><linearGradient id=\"clio-colors\" {direction} color-interpolation=\"sRGB\">"
+  )
+  .map_err(|_| Error::Numerical("SVG formatting failed"))?;
+  for i in 0..stops {
+    let t = f64::from(i) / f64::from(stops - 1);
+    let color = scale.rgba(if count == 1 { 0.5 } else { t });
+    write!(
+      document,
+      "<stop offset=\"{t}\" stop-color=\"{}\" stop-opacity=\"{}\"/>",
+      svg::hex(color),
+      f64::from(color[3]) / 255.0
+    )
+    .map_err(|_| Error::Numerical("SVG formatting failed"))?;
+  }
+  let [width, height] = request.resolution;
+  write!(
+    document,
+    "</linearGradient></defs><rect width=\"{width}\" height=\"{height}\" fill=\"url(#clio-colors)\"/>"
+  )
+  .map_err(|_| Error::Numerical("SVG formatting failed"))?;
+  Ok(svg::finish(document))
+}
