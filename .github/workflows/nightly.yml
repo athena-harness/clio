@@ -47,7 +47,7 @@ jobs:
           set -euo pipefail
           previous_tag="$(gh api --paginate --slurp \
             "repos/$GH_REPO/releases?per_page=100" \
-            --jq '[.[][] | select(.draft == false and .prerelease == true
+            | jq -r '[.[][] | select(.draft == false and .prerelease == true
               and (.tag_name | startswith("nightly-")))]
               | sort_by(.published_at) | last | .tag_name // empty')"
           echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
